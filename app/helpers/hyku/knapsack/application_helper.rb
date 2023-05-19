@@ -1,5 +1,5 @@
 module Hyku
-  module KnapSack
+  module Knapsack
     module ApplicationHelper
     end
   end

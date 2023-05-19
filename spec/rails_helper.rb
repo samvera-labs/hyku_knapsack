@@ -37,7 +37,7 @@ RSpec.configure do |config|
   # They enable url_helpers not to throw error in Rspec system spec and request spec.
   # config.include Rails.application.routes.url_helpers
   # TODO is this needed?
-  config.include HykuKnapSack::Engine.routes.url_helpers
+  config.include HykuKnapsack::Engine.routes.url_helpers
 
  ## End override
 end

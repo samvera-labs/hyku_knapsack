@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-# Specify your gem's dependencies in hyku-knap_sack.gemspec.
+# Specify your gem's dependencies in hyku-knapsack.gemspec.
 gemspec
 
 # Start debugger with binding.b [https://github.com/ruby/debug]

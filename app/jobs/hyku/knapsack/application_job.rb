@@ -1,5 +1,5 @@
 module Hyku
-  module KnapSack
+  module Knapsack
     class ApplicationJob < ActiveJob::Base
     end
   end

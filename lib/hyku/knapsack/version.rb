@@ -1,5 +1,5 @@
 module Hyku
-  module KnapSack
+  module Knapsack
     VERSION = "0.1.0"
   end
 end

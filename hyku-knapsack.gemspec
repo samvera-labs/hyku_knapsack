@@ -1,11 +1,11 @@
-require_relative "lib/hyku/knap_sack/version"
+require_relative "lib/hyku/knapsack/version"
 
 Gem::Specification.new do |spec|
-  spec.name        = "hyku-knap_sack"
-  spec.version     = Hyku::KnapSack::VERSION
+  spec.name        = "hyku-knapsack"
+  spec.version     = Hyku::Knapsack::VERSION
   spec.authors     = ["Rob Kaufman"]
   spec.email       = ["rob@scientist.com"]
-  spec.homepage    = "https://github.com/samvera-labs/hyku-knap_sack"
+  spec.homepage    = "https://github.com/samvera-labs/hyku-knapsack"
   spec.summary     = "This gem provides a starting template for deploying Hyku, creating themes and adding overrides."
   spec.description = spec.summary
   spec.license     = "Apache-2.0"

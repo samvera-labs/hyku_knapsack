@@ -1,7 +1,7 @@
 module Hyku
-  module KnapSack
+  module Knapsack
     class Engine < ::Rails::Engine
-      isolate_namespace Hyku::KnapSack
+      isolate_namespace Hyku::Knapsack
     end
   end
 end

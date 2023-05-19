@@ -1,5 +1,5 @@
 module Hyku
-  module KnapSack
+  module Knapsack
     class ApplicationRecord < ActiveRecord::Base
       self.abstract_class = true
     end

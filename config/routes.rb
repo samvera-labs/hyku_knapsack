@@ -1,2 +1,2 @@
-Hyku::KnapSack::Engine.routes.draw do
+Hyku::Knapsack::Engine.routes.draw do
 end

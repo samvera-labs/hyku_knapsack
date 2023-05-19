@@ -1,5 +1,5 @@
 module Hyku
-  module KnapSack
+  module Knapsack
     class ApplicationController < ActionController::Base
     end
   end

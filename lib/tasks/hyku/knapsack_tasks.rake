@@ -1,4 +1,4 @@
 # desc "Explaining what the task does"
-# task :hyku_knap_sack do
+# task :hyku_knapsack do
 #   # Task goes here
 # end
