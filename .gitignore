@@ -1,0 +1,8 @@
+/.bundle/
+/doc/
+/log/*.log
+/pkg/
+/tmp/
+scratch.md
+*~undo-tree~
+.env.*
