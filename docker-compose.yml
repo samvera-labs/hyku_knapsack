@@ -43,7 +43,7 @@ services:
     # command left commented for situations where the Gemfile.lock needs to be updated before the app starts
     # command: bash -l -c "bundle && ./bin/web"
     environment:
-      - BUNDLE_LOCAL__HYKU-SPROUT=/app/samvera
+      - BUNDLE_LOCAL__HYKU-KNAPSACK=/app/samvera
       - VIRTUAL_PORT=3000
       - VIRTUAL_HOST=.hyku.test
     volumes:
@@ -74,13 +74,13 @@ services:
       file: hyrax-webapp/docker-compose.yml
       service: initialize_app
     # command left commented for situations where the Gemfile.lock needs to be updated before the app starts
-    # command:
-    #   - >
-    #     bundle &&
-    #     solrcloud-upload-configset.sh /app/samvera/hyrax-webapp/solr/conf &&
-    #     solrcloud-assign-configset.sh &&
-    #     SOLR_COLLECTION_NAME=hydra-test solrcloud-assign-configset.sh &&
-    #     db-migrate-seed.sh
+    command:
+      - >
+        bundle &&
+        solrcloud-upload-configset.sh /app/samvera/hyrax-webapp/solr/conf &&
+        solrcloud-assign-configset.sh &&
+        SOLR_COLLECTION_NAME=hydra-test solrcloud-assign-configset.sh &&
+        db-migrate-seed.sh
 
   redis:
     extends:
