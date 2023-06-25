@@ -1,4 +1,4 @@
-# Hyku::Knapsack
+# HykuKnapsack
 Short description and motivation.
 
 ## Usage

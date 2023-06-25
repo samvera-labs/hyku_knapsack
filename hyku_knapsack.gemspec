@@ -2,7 +2,7 @@ require_relative "lib/hyku/knapsack/version"
 
 Gem::Specification.new do |spec|
   spec.name        = "hyku-knapsack"
-  spec.version     = Hyku::Knapsack::VERSION
+  spec.version     = HykuKnapsack::VERSION
   spec.authors     = ["Rob Kaufman"]
   spec.email       = ["rob@scientist.com"]
   spec.homepage    = "https://github.com/samvera-labs/hyku-knapsack"
