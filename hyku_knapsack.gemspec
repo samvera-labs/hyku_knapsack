@@ -1,7 +1,7 @@
-require_relative "lib/hyku/knapsack/version"
+require_relative "lib/hyku_knapsack/version"
 
 Gem::Specification.new do |spec|
-  spec.name        = "hyku-knapsack"
+  spec.name        = "hyku_knapsack"
   spec.version     = HykuKnapsack::VERSION
   spec.authors     = ["Rob Kaufman"]
   spec.email       = ["rob@scientist.com"]
