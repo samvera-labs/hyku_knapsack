@@ -1,8 +1,6 @@
 require "hyku/knapsack/version"
 require "hyku/knapsack/engine"
 
-module Hyku
-  module Knapsack
-    # Your code goes here...
-  end
+module HykuKnapsack
+  # Your code goes here...
 end

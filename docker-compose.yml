@@ -41,9 +41,10 @@ services:
       file: hyrax-webapp/docker-compose.yml
       service: web
     # command left commented for situations where the Gemfile.lock needs to be updated before the app starts
-    # command: bash -l -c "bundle && ./bin/web"
+    command: bash -l -c "bundle && ./bin/web"
     environment:
-      - BUNDLE_LOCAL__HYKU-KNAPSACK=/app/samvera
+      # This line is what makes the knapsack include use the local code instead of the remote gem
+      - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
       - VIRTUAL_PORT=3000
       - VIRTUAL_HOST=.hyku.test
     volumes:
