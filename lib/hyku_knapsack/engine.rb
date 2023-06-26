@@ -23,8 +23,8 @@ module HykuKnapsack
       paths = ActionController::Base.view_paths.collect{|p| p.to_s}
       # This is the opposite of what you usually want to do. Normally app views override engine views
       # but in our case things in the Knapsack override what is in the application
-      paths << my_engine_root + '/app/views'
-      ActionController::Base.view_paths = paths
+      paths = [my_engine_root + '/app/views'] + paths
+      ActionController::Base.view_paths = paths.uniq
       ::ApplicationController.send :helper, HykuKnapsack::Engine.helpers
     end
   end
