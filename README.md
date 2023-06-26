@@ -1,24 +1,48 @@
 # HykuKnapsack
-Short description and motivation.
+Hyku Knapsack is a little wrapper around Hyku to make development and deployment easier. Primary goals of this project
+include making contributing back to the Hyku project easier and making upgrades a snap.
 
 ## Usage
-How to use my plugin.
+Start by making a copy. You can fork on Github or simply check out this repo and add a new remote:
+
+Note $PROJECT_NAME can only contain letters, numbers and underscores due to a bundler limitation.
+
+```bash
+git clone git@github.com:samvera-labs/hyku_knapsack.git $PROJECT_NAME_knapsack
+cd $PROJECT_NAME_knapsack
+git remote rename origin upstream
+git remote add origin $NEW_REPO_URL
+git branch -M main
+git push -u origin main
+```
+
+### Overrides
+Adding decorators to override features is fairly simple. We do recommend some best practices [found here](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides)
+
+Any file with `_decorator.rb` in the app or lib directory will automatically be loaded along with any classes in the app directory.
+
+### Deployment scripts
+
+Deployment code can be added as needed.
+
+### Theme files
+
+Theme files (views, css, etc) can be added in the the Knapsack. We recommend adding an override comment as [described here](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides)
+
+### Gems
+
+It can be useful to add additional gems to the bundle. This can be done w/o editing Hyku by adding them as dependencies to `hyku_knapsack.gemspec`
 
 ## Installation
-Add this line to your application's Gemfile:
+If not using a current version, add this line to Hyku's Gemfile:
 
 ```ruby
-gem "hyku-knapsack"
+gem "hyku_knapsack", github: 'samvera-labs/hyku_knapsack', branch: 'main'
 ```
 
 And then execute:
 ```bash
 $ bundle
-```
-
-Or install it yourself as:
-```bash
-$ gem install hyku-knapsack
 ```
 
 ## Contributing
