@@ -67,6 +67,7 @@ services:
     environment:
       # This line is what makes the knapsack include use the local code instead of the remote gem
       - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
+      - BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
       - VIRTUAL_PORT=3000
       - VIRTUAL_HOST=.hyku.test
     volumes:
@@ -90,6 +91,10 @@ services:
       args:
         BUILDKIT_INLINE_CACHE: 1
     image: ghcr.io/samvera-labs/hyku_knapsack/worker:${TAG:-latest}
+    environment:
+      # This line is what makes the knapsack include use the local code instead of the remote gem
+      - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
+      - BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
     volumes:
       - node_modules:/app/samvera/hyrax-webapp/node_modules:cached
       - uploads:/app/samvera/hyrax-webapp/public/uploads:cached
@@ -110,6 +115,10 @@ services:
       args:
         BUILDKIT_INLINE_CACHE: 1
     image: ghcr.io/samvera-labs/hyku_knapsack:${TAG:-latest}
+    environment:
+      # This line is what makes the knapsack include use the local code instead of the remote gem
+      - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
+      - BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
 
   initialize_app:
     extends:
@@ -124,10 +133,13 @@ services:
       args:
         BUILDKIT_INLINE_CACHE: 1
     image: ghcr.io/samvera-labs/hyku_knapsack:${TAG:-latest}
+    environment:
+      # This line is what makes the knapsack include use the local code instead of the remote gem
+      - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
+      - BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
     # command left commented for situations where the Gemfile.lock needs to be updated before the app starts
     command:
       - >
-        bundle &&
         solrcloud-upload-configset.sh /app/samvera/hyrax-webapp/solr/conf &&
         solrcloud-assign-configset.sh &&
         SOLR_COLLECTION_NAME=hydra-test solrcloud-assign-configset.sh &&
