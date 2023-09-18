@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Save the current branch name
-current_branch=$(git rev-parse --abbrev-ref HEAD)
+current_branch=$(git rev-parse HEAD)
 
 # Fetch any updates from the origin
 if $(git rev-parse --is-shallow-repository); then

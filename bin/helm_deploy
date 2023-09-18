@@ -18,14 +18,13 @@ fi
 release_name="${1//_/-}"
 namespace="${2//_/-}"
 
-CHART_VERSION="${CHART_VERSION:-2.0.0}"
-
 DEPLOY_IMAGE="${DEPLOY_IMAGE:-ghcr.io/samvera/hyku}"
 WORKER_IMAGE="${WORKER_IMAGE:-ghcr.io/samvera/hyku/worker}"
 DEPLOY_TAG="${DEPLOY_TAG:-latest}"
 WORKER_TAG="${WORKER_TAG:-$DEPLOY_TAG}"
 echo $DEPLOY_TAG
 
+CHART_VERSION="${CHART_VERSION:-2.0.0}"
 helm pull --untar oci://ghcr.io/samvera/charts/hyrax --version $CHART_VERSION
 helm repo update
 

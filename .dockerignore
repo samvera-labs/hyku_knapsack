@@ -16,9 +16,6 @@
 .coveralls.yml
 .ebextensions
 .fcrepo_wrapper
-.git
-.github
-.gitignore
 .hound.yml
 .idea
 .internal_test_app/*
@@ -28,6 +25,6 @@ node_modules/*
 solr/solr/*
 fcrpo/*
 pg/*
-Dockerfile*
 fits.log
 ImageMagick*
+.DS_Store
