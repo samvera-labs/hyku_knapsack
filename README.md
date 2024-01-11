@@ -55,13 +55,15 @@ In your Repository host of choice, create a new (and for now empty) repository.
 - `$NEW_REPO_URL` is the location of your application's knapsack git project (e.g. https://github.com/my-org/my_org_knapsack)
 
 ```bash
-git clone https://github.com/scientist-softserv/adventist_knapsack $PROJECT_NAME_knapsack
+git clone https://github.com/samvera-labs/hyku_knapsack $PROJECT_NAME_knapsack
 cd $PROJECT_NAME_knapsack
 git remote rename origin prime
 git remote add origin $NEW_REPO_URL
 git branch -M main
 git push -u origin main
 ```
+
+Naming the `samvera-labs/hyku_knapsack` as `prime` helps clarify what we mean.  In conversations about Hyku instances, invariably we use the language of Prime to reflect what's in Samvera's repositories.  By using that language for remotes, we help reinforce the concept that `https://github.com/samvera/hyku` is Hyku prime and `https://github.com/samvera-labs/hyku_knapsack` is Knapsack prime.
 
 #### Fork on Github
 
@@ -76,7 +78,30 @@ git remote add prime https://github.com/samvera-labs/hyku_knapsack
 
 ### Hyku and HykuKnapsack
 
-You run your Hyku application by way of the HykuKnapsack.  As mentioned, the HykuKnapsack contains your application's relevant information for running an instance of Hyku.  A newly cloned knapsack will have an empty `./hyrax-webapp` directory.  That is where the Hyku application will exist.  The version of Hyku is managed via a [Git submodule](https://git-scm.com/docs/git-submodule).
+You run your Hyku application by way of the HykuKnapsack.  As mentioned, the HykuKnapsack contains your application's relevant information for running an instance of Hyku.
+
+There are two things you need to do:
+
+- Ensure you have the [reserved branch](#reserved-branch)
+- Initialize the [Hyku submodule](#hyku-submodule)
+
+#### Reserved Branch
+
+Knapsack turns the assumptions of a Rails engine upside-down; the application overlays traditional engines, but Knapsack overlays the application.  As such the Gemfile declared in Hyku does some bundler trickery.
+
+In the `$PROJECT_NAME_knapsack` directory, you need to run the following:
+
+```bash
+git fetch prime
+git checkout prime/required_for_knapsack_instances
+git switch -c required_for_knapsack_instances
+```
+
+For Hyku to build with Knapsack, we need a local branch named `required_for_knapsack_instances`.  _Note:_ As we work more with Knapsack maintenance there may be improvements to this shim.
+
+#### Hyku Submodule
+
+A newly cloned knapsack will have an empty `./hyrax-webapp` directory.  That is where the Hyku application will exist.  The version of Hyku is managed via a [Git submodule](https://git-scm.com/docs/git-submodule).
 
 To bring that application into your knapsack, you will need to initialize the Hyku submodule:
 
