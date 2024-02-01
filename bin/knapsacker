@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby -wU
 
-# The purpose of this script is to quickly assess which files should:
+# The purpose of this script is to quickly assess which specs should:
 #
 # - be removed (e.g. duplicate in Knapsack and Hyku)
 # - be reviewed (e.g. differences between Knapsack and Hyku)
@@ -65,11 +65,10 @@ end
 
 # TODO: This is not generally working.
 dir_glob_patterns_to_check.each do |pattern|
-  Dir.glob(File.join(yours, pattern)).each do |your_path|
-    path = your_path.sub(File.join(yours, '/'), '')
-    upstream_path = File.join(upstream, path)
-    if File.exist?(upstream_path)
-      results = `diff #{your_path} #{upstream_path}`.strip
+  Dir.glob(pattern).each do |path|
+    hyku_path = File.join(upstream, path)
+    if File.exist?(hyku_path)
+      results = `diff #{path} #{hyku_path}`.strip
       if results.empty?
         duplicates << path
       else
@@ -95,7 +94,7 @@ end
 puts ""
 
 puts "------------------------------------------------------------------"
-puts "Files in \"yours\" that are exact duplicates of \"upstream\" files"
+puts "Files in your Hyku that are exact duplicates of upstream Hyku file"
 puts "They are prefixed with a `='"
 puts "------------------------------------------------------------------"
 duplicates.each do |path|
@@ -108,7 +107,7 @@ end
 puts ""
 
 puts "----------------------------------------------------"
-puts "Files that are in \"yours\" but not in \"upstream\" "
+puts "Files that are in your Hyku but not in upstream Hyku"
 puts "They are prefixed with a `+'"
 puts "----------------------------------------------------"
 in_yours_but_not_in_upstream.each do |path|
@@ -118,7 +117,7 @@ end
 puts ""
 
 puts "-------------------------------------------------------------"
-puts "Files that are changed in \"yours\" relative to \"upstream\""
+puts "Files that are changed in your Hyku relative to upstream Hyku"
 puts "They are prefixed with a `Δ'"
 puts "-------------------------------------------------------------"
 changed_in_yours.each do |path|
