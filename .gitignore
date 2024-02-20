@@ -7,4 +7,5 @@ scratch.md
 *~undo-tree~
 .env.*
 .DS_Store
-/file_cache/
+
+/coverage

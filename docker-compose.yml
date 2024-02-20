@@ -70,8 +70,8 @@ services:
     extends:
       file: hyrax-webapp/docker-compose.yml
       service: web
-    # command left commented for situations where the Gemfile.lock needs to be updated before the app starts
-    # command: bash -l -c "sleep infinity"
+    # Uncomment command to access container with out starting bin/web. Useful for debugging or updating Gemfile.lock
+    # command: sleep infinity
     environment:
       # This line is what makes the knapsack include use the local code instead of the remote gem
       - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
@@ -84,7 +84,18 @@ services:
     extends:
       file: hyrax-webapp/docker-compose.yml
       service: worker
+    build:
+      context: .
+      target: hyku-worker
+      cache_from:
+        - ghcr.io/samvera/hyku/base:latest
+        - ghcr.io/samvera-labs/hyku_knapsack/worker:latest
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+        APP_PATH: ./hyrax-webapp
     image: ghcr.io/samvera-labs/hyku_knapsack/worker:${TAG:-latest}
+    # Uncomment command to access container with out starting bin/worker. Useful for debugging or updating Gemfile.lock
+    # command: sleep infinity
     volumes:
       - node_modules:/app/samvera/hyrax-webapp/node_modules:cached
       - uploads:/app/samvera/hyrax-webapp/public/uploads:cached
