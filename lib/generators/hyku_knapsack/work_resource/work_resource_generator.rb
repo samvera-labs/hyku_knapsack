@@ -40,7 +40,7 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
   end
 
   def create_controller
-    template('controller.rb.erb', File.join('../../app/controllers/hyrax', class_path, "#{plural_file_name}_controller.rb"))
+    template('controller.rb.erb', File.join('../app/controllers/hyrax', class_path, "#{plural_file_name}_controller.rb"))
   end
 
   def create_metadata_config
@@ -57,7 +57,7 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
 
   def create_model_spec
     return unless rspec_installed?
-    filepath = File.join('../../spec/models/', class_path, "#{file_name}_spec.rb")
+    filepath = File.join('../spec/models/', class_path, "#{file_name}_spec.rb")
     template('work_spec.rb.erb', filepath)
     return if attributes.blank?
     inject_into_file filepath, after: /it_behaves_like 'a Hyrax::Work'\n/ do
@@ -109,6 +109,32 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
     return unless rspec_installed?
     template('work.html.erb_spec.rb.erb',
              File.join('../spec/views/', class_path, "#{plural_file_name}/_#{file_name}.html.erb_spec.rb"))
+  end
+
+  def insert_hyku_works_controller_behavior
+    controller = File.join('../app/controllers/hyrax', class_path, "#{plural_file_name}_controller.rb")
+    insert_into_file controller, after: "include Hyrax::WorksControllerBehavior\n" do
+      "    include Hyku::WorksControllerBehavior\n"
+    end
+  end
+
+  def insert_hyku_extra_includes_into_model
+    model = File.join('../app/models/', class_path, "#{file_name}.rb")
+    insert_into_file model, before: "end" do
+      <<-RUBY.gsub(/^ {8}/, '  ')
+        include Hyrax::Schema(:with_pdf_viewer)
+        include Hyrax::Schema(:with_video_embed)
+        include Hyrax::ArResource
+        include Hyrax::NestedWorks
+
+        include IiifPrint.model_configuration(
+          pdf_split_child_model: GenericWorkResource,
+          pdf_splitter_service: IiifPrint::TenantConfig::PdfSplitter
+        )
+
+        prepend OrderAlready.for(:creator)
+      RUBY
+    end
   end
 
   private
