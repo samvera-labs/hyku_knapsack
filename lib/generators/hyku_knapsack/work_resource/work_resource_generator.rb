@@ -137,6 +137,29 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
     end
   end
 
+  def insert_hyku_extra_includes_into_form
+    form = File.join('../app/forms/', class_path, "#{file_name}_form.rb")
+    insert_into_file form, after: "include Hyrax::FormFields(:#{file_name})\n" do
+      <<-RUBY.gsub(/^ {8}/, '  ').chomp
+        include Hyrax::FormFields(:with_pdf_viewer)
+        include Hyrax::FormFields(:with_video_embed)
+        include VideoEmbedBehavior::Validation
+      RUBY
+    end
+  end
+
+  def insert_hyku_extra_includes_into_indexer
+    indexer = File.join('../app/indexers/', class_path, "#{file_name}_indexer.rb")
+    insert_into_file indexer, after: "include Hyrax::Indexer(:#{file_name})\n" do
+      <<-RUBY.gsub(/^ {8}/, '  ').chomp
+        include Hyrax::Indexer(:with_pdf_viewer)
+        include Hyrax::Indexer(:with_video_embed)
+
+        include HykuIndexing
+      RUBY
+    end
+  end
+
   private
 
   def rspec_installed?
