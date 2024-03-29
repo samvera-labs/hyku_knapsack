@@ -39,5 +39,5 @@ RSpec.configure do |config|
   # TODO is this needed?
   config.include HykuKnapsack::Engine.routes.url_helpers
 
- ## End override
+  ## End override
 end

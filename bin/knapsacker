@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby -wU
+# frozen_string_literal: true
 
 # The purpose of this script is to quickly assess which specs should:
 #
@@ -6,13 +7,13 @@
 # - be reviewed (e.g. differences between Knapsack and Hyku)
 # - kept outright (e.g. in Knapsack but not Hyku)
 
+require 'English'
 require 'optparse'
 config = { yours: './', upstream: './hyrax-webapp', patterns_to_check: ["spec/**/*.*", "app/**/*.*", "lib/**/*.*"] }
 
 command_name = File.basename(__FILE__)
 
-
-nlp = new_line_padding = " " * 37
+nlp = _new_line_padding = " " * 37
 optparse = OptionParser.new do |options|
   # This banner is the first line of your help documentation.
   options.set_banner "Usage: #{command_name} [options]\n\n" \
@@ -38,7 +39,7 @@ begin
   missing = mandatory.select { |param| config[param].nil? }
   raise OptionParser::MissingArgument, missing.join(', ') unless missing.empty?
 rescue OptionParser::InvalidOption, OptionParser::MissingArgument
-  warn "\e[0m\e[1m\e[31m#{$!}\e[0m\n"
+  warn "\e[0m\e[1m\e[31m#{$ERROR_INFO}\e[0m\n"
   warn optparse
   exit
 end
@@ -80,10 +81,9 @@ dir_glob_patterns_to_check.each do |pattern|
   end
 end
 
-
-puts "-"*72
+puts "-" * 72
 puts "Knapsacker run context:"
-puts "-"*72
+puts "-" * 72
 puts "- Working Directory: #{FileUtils.pwd}"
 puts "- Your Dir: #{yours}"
 puts "- Upstream Dir: #{upstream}"
@@ -99,9 +99,7 @@ puts "They are prefixed with a `='"
 puts "------------------------------------------------------------------"
 duplicates.each do |path|
   puts "= #{path}"
-  if ENV['RM_DUPS']
-    File.unlink(path)
-  end
+  File.unlink(path) if ENV['RM_DUPS']
 end
 
 puts ""
