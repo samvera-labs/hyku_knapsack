@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 # see https://github.com/kbrock/bundler-inject/tree/gem_path
 
 # specify one or more ruby files in this directory to be injected into bundler
