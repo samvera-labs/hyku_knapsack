@@ -32,7 +32,7 @@ module HykuKnapsack
     config.before_initialize do
       config.i18n.load_path += Dir["#{config.root}/config/locales/**/*.yml"]
 
-      #if Hyku::Application.respond_to?(:user_devise_parameters=)
+      # if Hyku::Application.respond_to?(:user_devise_parameters=)
       #  Hyku::Application.user_devise_parameters = %i[
       #    database_authenticatable
       #    invitable
@@ -42,7 +42,7 @@ module HykuKnapsack
       #    validatable
       #    omniauthable
       #  ]
-      #end
+      # end
     end
 
     config.after_initialize do
@@ -54,13 +54,7 @@ module HykuKnapsack
         Rails.configuration.cache_classes ? require(c) : load(c)
       end
 
-      # By default plain text files are not processed for text extraction.  In adding
-      # Adventist::TextFileTextExtractionService to the beginning of the services array we are
-      # enabling text extraction from plain text files.
-      #
-      # https://github.com/scientist-softserv/adventist-dl/blob/97bd05946345926b2b6c706bd90e183a9d78e8ef/config/application.rb#L68-L73
       Hyrax::DerivativeService.services = [
-        # Adventist::TextFileTextExtractionService,
         IiifPrint::PluggableDerivativeService
       ]
 

@@ -8,6 +8,7 @@
 require 'rails/generators'
 require 'rails/generators/model_helpers'
 
+# rubocop:disable Metrics/ClassLength
 class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
   # ActiveSupport can interpret models as plural which causes
   # counter-intuitive route paths. Pull in ModelHelpers from
@@ -154,3 +155,4 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
     behavior == :revoke
   end
 end
+# rubocop:enable Metrics/ClassLength

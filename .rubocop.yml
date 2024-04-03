@@ -1,0 +1,78 @@
+inherit_gem:
+  bixby: bixby_default.yml
+
+AllCops:
+  NewCops: disable
+  TargetRubyVersion: 3.2.2
+  DisplayCopNames: true
+  Exclude:
+  # NOTE: When we run knapsack's rubocop, we don't want to check the submodule
+  #       for Hyku.  We'll assume it's okay and has it's own policing policies.
+  - "hyrax-webapp/**/*"
+
+Metrics/BlockLength:
+  IgnoredMethods: ['included', 'describe', 'it', 'context']
+  Exclude:
+  - "spec/**/*.rb"
+
+Style/AsciiComments:
+  Enabled: false
+
+# rubocop suggests !thing.nil? instead, but that is NOT equivalent
+Style/DoubleNegation:
+  Enabled: false
+
+Style/CollectionMethods:
+  PreferredMethods:
+    collect: 'map'
+    collect!: 'map!'
+    inject: 'reduce'
+    detect: 'find'
+    find_all: 'select'
+
+Style/SymbolArray:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+Style/SingleLineBlockParams:
+  Enabled: false
+
+Rails/ApplicationJob:
+  Enabled: false
+
+Rails/ApplicationMailer:
+  Enabled: false
+
+Rails/ApplicationRecord:
+  Enabled: false
+
+Rails/RakeEnvironment:
+  Enabled: false
+
+# We define custom methods like `find_by_user_key`,
+# `find_by_created_date`, etc
+Rails/DynamicFindBy:
+  Enabled: false
+
+# # By default RSpec/MessageSpies has the following:
+# #   Prefer have_received for setting message expectations. Setup form as a spy using allow or instance_spy.
+# # The default assumes EnforcedStyle is 'have_received'. Most of our specs are 'receive'
+RSpec/MessageSpies:
+  Enabled: false
+
+RSpec/ExpectActual:
+  Enabled: false
+
+RSpec/LetSetup:
+  Enabled: false
+
+RSpec/MessageExpectation:
+  Enabled: false
+
+RSpec/NestedGroups:
+  Enabled: false
+
+RSpec/LeadingSubject:
+  Enabled: false

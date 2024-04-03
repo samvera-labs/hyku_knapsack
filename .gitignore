@@ -9,3 +9,4 @@ scratch.md
 .DS_Store
 
 /coverage
+file_cache/

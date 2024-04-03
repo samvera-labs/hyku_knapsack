@@ -1,16 +1,24 @@
 replicaCount: 2
 
+resources:
+  limits:
+    memory: "4Gi"
+    cpu: "500m"
+  requests:
+    memory: "2Gi"
+    cpu: "250m"
+
 livenessProbe:
   enabled: false
 readinessProbe:
   enabled: false
 
 brandingVolume:
-  storageClass: aws-efs
+  storageClass: efs-sc
 derivativesVolume:
-  storageClass: aws-efs
+  storageClass: efs-sc
 uploadsVolume:
-  storageClass: aws-efs
+  storageClass: efs-sc
   size: 200Gi
 
 imagePullSecrets:
@@ -32,6 +40,9 @@ extraVolumeMounts: &volMounts
   - name: uploads
     mountPath: /app/samvera/hyrax-webapp/tmp/network_files
     subPath: network-files
+  - name: uploads
+    mountPath: /app/samvera/hyrax-webapp/storage/files
+    subPath: storage-files
 
 ingress:
   enabled: true
@@ -123,15 +134,19 @@ extraEnvVars: &envVars
   - name: HYRAX_ACTIVE_JOB_QUEUE
     value: sidekiq
   - name: HYRAX_ANALYTICS
+    value: "false"
+  - name: HYRAX_FITS_PATH
+    value: /app/fits/fits.sh
+  - name: HYRAX_VALKYRIE
     value: "true"
   - name: HYKU_BULKRAX_ENABLED
     value: "true"
+  - name: HYKU_BLOCK_VALKYRIE_REDIRECT
+    value: "false"
   - name: HYKU_CONTACT_EMAIL
     value: REPLACE_ME
   - name: HYKU_FILE_ACL
     value: "false"
-  - name: HYRAX_FITS_PATH
-    value: /app/fits/fits.sh
   - name: HYKU_ADMIN_HOST
     value: RPLACEME
   - name: HYKU_ADMIN_ONLY_TENANT_CREATION
@@ -182,6 +197,8 @@ extraEnvVars: &envVars
     value: user@example.com
   - name: TEST_USER_PASSWORD
     value: testing123
+  - name: VALKYRIE_ID_TYPE
+    value: string
 
 worker:
   replicaCount: 1
@@ -219,7 +236,7 @@ externalFcrepoHost: fcrepo.staging-fcrepo.svc.cluster.local
 externalPostgresql:
   host: pg-postgresql.staging-postgres.svc.cluster.local
   username: postgres
-  password: $POSTGRES_PASSWORD
+  password: $DB_PASSWORD
 
 externalSolrHost: solr.staging-solr.svc.cluster.local
 externalSolrUser: admin
