@@ -138,6 +138,14 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
     end
   end
 
+  def insert_hyku_extra_includes_into_form
+    form = File.join('../app/forms/', class_path, "#{file_name}_form.rb")
+    insert_into_file form, after: "include Hyrax::FormFields(:#{file_name})\n" do
+      "  include Hyrax::FormFields(:with_pdf_viewer)\n" \
+      "  include Hyrax::FormFields(:with_video_embed)\n"
+    end
+  end
+
   private
 
   def rspec_installed?
