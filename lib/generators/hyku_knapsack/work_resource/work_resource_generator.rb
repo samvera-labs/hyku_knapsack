@@ -121,13 +121,14 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
 
   def insert_hyku_extra_includes_into_model
     model = File.join('../app/models/', class_path, "#{file_name}.rb")
+    af_model = "#{class_name}".gsub('Resource', '')&.safe_constantize if class_name.end_with?('Resource')
     insert_into_file model, before: "end" do
       <<-RUBY.gsub(/^ {8}/, '  ')
         include Hyrax::Schema(:with_pdf_viewer)
         include Hyrax::Schema(:with_video_embed)
         include Hyrax::ArResource
         include Hyrax::NestedWorks
-
+        #{ "\n  Hyrax::ValkyrieLazyMigration.migrating(self, from: #{af_model})\n" if af_model }
         include IiifPrint.model_configuration(
           pdf_split_child_model: GenericWorkResource,
           pdf_splitter_service: IiifPrint::TenantConfig::PdfSplitter
@@ -135,6 +136,14 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
 
         prepend OrderAlready.for(:creator)
       RUBY
+    end
+  end
+
+  def insert_hyku_extra_includes_into_form
+    form = File.join('../app/forms/', class_path, "#{file_name}_form.rb")
+    insert_into_file form, after: "include Hyrax::FormFields(:#{file_name})\n" do
+      "  include Hyrax::FormFields(:with_pdf_viewer)\n" \
+      "  include Hyrax::FormFields(:with_video_embed)\n"
     end
   end
 
