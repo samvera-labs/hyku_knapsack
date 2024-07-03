@@ -21,7 +21,7 @@ module HykuKnapsack
       # only add the migrations if they are not already copied
       # via the rake task. Allows gem to work both with the install:migrations
       # and without it.
-      if !app.root.to_s.match(HykuKnapsack::Engine.root.to_s) &&
+      if app.root.to_s != HykuKnapsack::Engine.root.to_s &&
          app.root.join('db/migrate').children.none? { |path| path.fnmatch?("*.hyku_knapsack.rb") }
         config.paths["db/migrate"].expanded.each do |expanded_path|
           app.config.paths["db/migrate"] << expanded_path
@@ -43,9 +43,12 @@ module HykuKnapsack
       #    omniauthable
       #  ]
       # end
+
+      # Ensure we are prepending the Hyrax::SimpleSchemaLoaderDecorator early
+      Hyrax::SimpleSchemaLoader.prepend(Hyrax::SimpleSchemaLoaderDecorator)
     end
 
-    config.after_initialize do
+    config.to_prepare do
       HykuKnapsack::Engine.root.glob("app/**/*_decorator*.rb").sort.each do |c|
         Rails.configuration.cache_classes ? require(c) : load(c)
       end
@@ -53,7 +56,9 @@ module HykuKnapsack
       HykuKnapsack::Engine.root.glob("lib/**/*_decorator*.rb").sort.each do |c|
         Rails.configuration.cache_classes ? require(c) : load(c)
       end
+    end
 
+    config.after_initialize do
       Hyrax::DerivativeService.services = [
         IiifPrint::PluggableDerivativeService
       ]
