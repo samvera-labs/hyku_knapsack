@@ -1,22 +1,22 @@
 # frozen_string_literal: true
+
 # This file is copied to spec/ when you run 'rails generate rspec:install'
 require "spec_helper"
 require File.expand_path("hyku_specs/rails_helper.rb", __dir__)
 
 ENV["RAILS_ENV"] ||= "test"
 # require File.expand_path('../config/environment', __dir__)
-require Rails.root.join("config", "environment")
+require File.expand_path("../hyrax-webapp/config/environment", __dir__)
 # Prevent database truncation if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?
 require "rspec/rails"
 # Add additional requires below this line. Rails is not loaded until this point!
 require "factory_bot_rails"
+FactoryBot.definition_file_paths = [File.expand_path("spec/factories", HykuKnapsack::Engine.root)]
+FactoryBot.find_definitions
 
-if defined?(HykuAddons)
-  FactoryBot.definition_file_paths = [File.expand_path("spec/factories", HykuAddons::Engine.root)]
-  FactoryBot.find_definitions
-end
-
+require 'capybara/rails'
+require 'dry-validation'
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
 # run as spec files by default. This means that files in spec/support that end
@@ -31,7 +31,7 @@ end
 # require only the support files necessary.
 #
 # Require supporting ruby files from spec/support/ and subdirectories.  Note: engine, not Rails.root context.
-Dir[File.join(File.dirname(__FILE__), "support/**/*.rb")].each { |f| require f }
+Dir[HykuKnapsack::Engine.root.join('spec', 'support', '**', '*.rb')].each { |f| require f }
 
 RSpec.configure do |config|
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
@@ -41,6 +41,12 @@ RSpec.configure do |config|
   # config.include Rails.application.routes.url_helpers
   # TODO is this needed?
   config.include HykuKnapsack::Engine.routes.url_helpers
+  config.include Capybara::DSL
+  config.include Fixtures::FixtureFileUpload
 
-  # End override
+  # To run specs locally without the spec/hyku_specs/ directory do: `bundle exec rspec --tag ~hyku`
+  config.define_derived_metadata(file_path: %r{spec/hyku_specs/}) do |metadata|
+    metadata[:hyku] = true
+  end
+  ## End override
 end

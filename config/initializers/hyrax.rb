@@ -2,5 +2,7 @@
 
 # Use this to override any Hyrax configuration from the Knapsack
 
-Hyrax.config do |config|
+Rails.application.config.after_initialize do
+  Hyrax.config do |config|
+  end
 end
