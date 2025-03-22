@@ -1,4 +1,4 @@
-name: 'Build Test Lint'
+name: "Build Test Lint"
 run-name: Build Test Lint of ${{ github.ref_name }} by @${{ github.actor }}
 on:
   push:
@@ -9,33 +9,35 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      debug_enabled:
-        type: boolean
-        description: 'Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)'
+      debug_step:
         required: false
-        default: false
+        description: 'Pause the selected step to debug using tmate'
+        type: choice
+        default: ''
+        options:
+          - ''
+          - build
+          - test
+          - lint
 
 jobs:
   build:
-    uses: scientist-softserv/actions/.github/workflows/build.yaml@v0.0.18
+    uses: notch8/actions/.github/workflows/build.yaml@v0.0.23
     secrets: inherit
     with:
-      platforms: 'linux/amd64'
+      platforms: "linux/amd64"
       webTarget: hyku-web
       workerTarget: hyku-worker
-
   test:
     needs: build
-    uses: scientist-softserv/actions/.github/workflows/test.yaml@v0.0.18
+    uses: notch8/actions/.github/workflows/test.yaml@v0.0.23
     with:
       confdir: '/app/samvera/hyrax-webapp/solr/conf'
-      webTarget: hyku-web
-      workerTarget: hyku-worker
       rspec_cmd: "cd .. && gem install semaphore_test_boosters && bundle && rspec_booster --job $CI_NODE_INDEX/$CI_NODE_TOTAL"
 
   lint:
     needs: build
-    uses: scientist-softserv/actions/.github/workflows/lint.yaml@v0.0.18
+    uses: notch8/actions/.github/workflows/lint.yaml@v0.0.23
     with:
       webTarget: hyku-web
       workerTarget: hyku-worker

@@ -53,6 +53,11 @@ services:
       file: hyrax-webapp/docker-compose.yml
       service: fcrepo
 
+  fits:
+    extends:
+      file: hyrax-webapp/docker-compose.yml
+      service: fits
+
   db:
     extends:
       file: hyrax-webapp/docker-compose.yml
@@ -114,12 +119,6 @@ services:
     extends:
       file: hyrax-webapp/docker-compose.yml
       service: initialize_app
-    command:
-      - >
-        solrcloud-upload-configset.sh /app/samvera/hyrax-webapp/solr/conf &&
-        solrcloud-assign-configset.sh &&
-        SOLR_COLLECTION_NAME=hydra-test solrcloud-assign-configset.sh &&
-        db-migrate-seed.sh
 
   redis:
     extends:
