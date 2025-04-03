@@ -22,8 +22,7 @@ RUN echo "📚 Installing Tesseract Best (training data)!" && \
 RUN apt-get update && \
     apt-get install -y ghostscript && \
     rm -rf /var/lib/apt/lists/* && \
-    ln -s /usr/lib/*-linux-gnu/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 && \
-    echo "******** Packages Installed *********"
+    echo "******** Ghostscript Installed *********"
 
 # Switch back to the non-root user for running the application
 USER app
