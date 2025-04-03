@@ -20,7 +20,10 @@ RUN echo "📚 Installing Tesseract Best (training data)!" && \
 # Knapsack workaround for instllation of ghostscript a requirement of pdf derivative creation process.
 # It is installed in Hyku's Dockerfile but still doesn't get installed in the knapsack. Might be a path issue.
 RUN apt-get update && \
-    apt-get install -y ghostscript
+    apt-get install -y ghostscript && \
+    rm -rf /var/lib/apt/lists/* && \
+    ln -s /usr/lib/*-linux-gnu/libjemalloc.so.2 /usr/lib/libjemalloc.so.2 && \
+    echo "******** Packages Installed *********"
 
 # Switch back to the non-root user for running the application
 USER app
