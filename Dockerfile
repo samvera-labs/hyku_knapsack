@@ -17,6 +17,11 @@ RUN echo "📚 Installing Tesseract Best (training data)!" && \
     wget https://github.com/tesseract-ocr/tessdata_best/raw/main/eng.traineddata -O /usr/share/tessdata/eng_best.traineddata && \
     git config --global --add safe.directory /app/samvera
 
+# Knapsack workaround for instllation of ghostscript a requirement of pdf derivative creation process.
+# It is installed in Hyku's Dockerfile but still doesn't get installed in the knapsack. Might be a path issue.
+RUN apt-get update && \
+    apt-get install -y ghostscript
+
 # Switch back to the non-root user for running the application
 USER app
 
