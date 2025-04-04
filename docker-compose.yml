@@ -2,7 +2,7 @@ version: '3.8'
 x-app: &app
   build:
     context: .
-    target: hyku-web
+    target: hyku-knap-web
     cache_from:
       - ghcr.io/samvera/hyku/base:latest
       - ghcr.io/samvera-labs/hyku_knapsack:latest
@@ -93,7 +93,7 @@ services:
       service: worker
     build:
       context: .
-      target: hyku-worker
+      target: hyku-knap-worker
       cache_from:
         - ghcr.io/samvera/hyku/base:latest
         - ghcr.io/samvera-labs/hyku_knapsack/worker:latest
