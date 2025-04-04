@@ -13,9 +13,8 @@ on:
         required: false
         description: 'Pause the selected step to debug using tmate'
         type: choice
-        default: ''
+        default: 'build'
         options:
-          - ''
           - build
           - test
           - lint
