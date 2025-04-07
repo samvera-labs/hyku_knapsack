@@ -35,9 +35,15 @@ volumes:
   zoo:
 
 networks:
-  internal:
+  default:
+    name: stackcar
 
 services:
+  adminer:
+    extends:
+        file: hyrax-webapp/docker-compose.yml
+        service: adminer
+
   zoo:
     extends:
       file: hyrax-webapp/docker-compose.yml
@@ -81,11 +87,7 @@ services:
       # This line is what makes the knapsack include use the local code instead of the remote gem
       - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
       - BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
-      - VIRTUAL_PORT=3000
-      - VIRTUAL_HOST=.hyku.test
-      - HYKU_ADMIN_HOST=hyku.test
-      - HYKU_DEFAULT_HOST=%{tenant}.hyku.test
-      - HYKU_ROOT_HOST=hyku.test
+
   worker:
     <<: *app
     extends:
@@ -100,6 +102,7 @@ services:
       args:
         BUILDKIT_INLINE_CACHE: 1
         APP_PATH: ./hyrax-webapp
+        BASE_IMAGE: ${BASE_IMAGE}
     image: ghcr.io/samvera-labs/hyku_knapsack/worker:${TAG:-latest}
     # Uncomment command to access container with out starting bin/worker. Useful for debugging or updating Gemfile.lock
     # command: sleep infinity
