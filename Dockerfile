@@ -1,4 +1,5 @@
-FROM ghcr.io/samvera/hyku/base:latest as hyku-knap-base
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS hyku-knap-base
 
 # This is specifically NOT $APP_PATH but the parent directory
 COPY --chown=1001:101 . /app/samvera
