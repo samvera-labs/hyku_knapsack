@@ -99,7 +99,29 @@ git switch -c required_for_knapsack_instances
 
 For Hyku to build with Knapsack, we need a local branch named `required_for_knapsack_instances`.  _Note:_ As we work more with Knapsack maintenance there may be improvements to this shim.
 
-#### Hyku Submodule
+#### Automated Setup Script
+We now provide an automated setup script that handles the Hyku submodule initialization and Docker environment configuration. This script performs the following tasks:
+- Initializes and updates the hyrax-webapp submodule
+- Verifies that Docker is running
+- Sets the proper BASE_IMAGE in your .env file based on the submodule SHA
+- Installs a git hook to automatically update your environment when the submodule changes
+
+To use the setup script, run:
+```bash
+./bin/setup
+```
+
+After running the setup script, you can build and run your Docker containers:
+
+```bash
+docker compose build
+docker compose up
+```
+
+The git hook ensures that whenever you update the Hyku submodule, your Docker environment will automatically be configured to use the correct base image matching your submodule version.
+
+#### Manual Hyku Submodule Setup (Alternative)
+If you prefer to manually manage the Hyku submodule, you can follow these steps instead of using the automated setup script:
 
 A newly cloned knapsack will have an empty `./hyrax-webapp` directory.  That is where the Hyku application will exist.  The version of Hyku is managed via a [Git submodule](https://git-scm.com/docs/git-submodule).
 

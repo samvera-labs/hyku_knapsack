@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -e
+
+echo "🚀 Starting project setup..."
+
+# 🐙 Step 1: Init submodule if it hasn't been cloned yet
+if [ ! -f "hyrax-webapp/.git" ]; then
+  echo "📦 Initializing hyrax-webapp submodule..."
+  git submodule update --init --recursive
+else
+  echo "📦 hyrax-webapp already checked out — skipping submodule update"
+fi
+
+# 🐳 Step 2: Make sure Docker is running
+if ! docker info >/dev/null 2>&1; then
+  echo "❌ Docker is not running. Please start Docker Desktop or your Docker daemon."
+  exit 1
+fi
+
+# 🧠 Step 3: Set BASE_IMAGE from the submodule SHA
+echo "🔧 Setting BASE_IMAGE in .env..."
+SUBMODULE_SHA=$(cd hyrax-webapp && git rev-parse --short=8 HEAD)
+BASE_IMAGE="ghcr.io/samvera/hyku/base:$SUBMODULE_SHA"
+
+# Create or update .env file
+if grep -q '^BASE_IMAGE=' .env 2>/dev/null; then
+  sed -i.bak "s|^BASE_IMAGE=.*|BASE_IMAGE=$BASE_IMAGE|" .env && rm .env.bak
+else
+  echo "BASE_IMAGE=$BASE_IMAGE" >> .env
+fi
+echo "✅ BASE_IMAGE set to $BASE_IMAGE"
+
+# 🪝 Step 4: Install a post-checkout git hook to auto-update .env if submodule changes
+HOOK_PATH=".git/hooks/post-checkout"
+if [ ! -f "$HOOK_PATH" ]; then
+  echo "🪝 Installing post-checkout git hook..."
+  cat > "$HOOK_PATH" <<EOF
+#!/usr/bin/env bash
+if git diff --name-only HEAD@{1} HEAD | grep -q "^hyrax-webapp"; then
+  echo "🌀 hyrax-webapp submodule changed — re-running setup to update BASE_IMAGE..."
+  ./bin/setup
+fi
+EOF
+  chmod +x "$HOOK_PATH"
+  echo "✅ post-checkout hook installed"
+else
+  echo "ℹ️ Git hook already installed at $HOOK_PATH"
+fi
+
+echo "🎉 Setup complete! You can now run:"
+echo ""
+echo "  docker compose build"
+echo "  docker compose up"
+echo ""
