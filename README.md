@@ -140,9 +140,9 @@ This will checkout the submodule to the HEAD of the specified branch.
 
 ### Overrides
 
-Before overriding anything, please think hard (or ask the community) about whether what you are working on is a bug or feature that can apply to Hyku itself. If it is, please make a branch in your Hyku checkout (`./hyrax-webapp`) and do the work there. [See here](https://github.com/samvera-labs/hyku_knapsack/wiki/Hyku-Branches) for more information about working with Hyku branches in your Knapsack
+Before overriding anything, please think hard (or ask the community) about whether what you are working on is a bug or feature that can apply to Hyku itself. If it is, please make a branch in your Hyku checkout (`./hyrax-webapp`) and do the work there. Read more about [working with Hyku branches in your Knapsack](https://github.com/samvera-labs/hyku_knapsack/wiki/Hyku-Branches).
 
-Adding decorators to override features is fairly simple. We do recommend some best practices [found here](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides)
+Adding decorators to override features is fairly simple. We do recommend some [best practices](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides).
 
 Any file with `_decorator.rb` in the app or lib directory will automatically be loaded along with any classes in the app directory.
 
@@ -152,11 +152,11 @@ Deployment code can be added as needed.
 
 ### Theme files
 
-Theme files (views, css, etc) can be added in the the Knapsack. We recommend adding an override comment as [described here](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides)
+Theme files (views, css, etc) can be added to the knapsack. We recommend adding an [override comment](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides)
 
 ### Gems
 
-It can be useful to add additional gems to the bundle. This can be done w/o editing Hyku by adding them to the [./bundler.d/example.rb](./bundler.d/example.rb].  [See the bundler-inject documentation for more details](https://github.com/kbrock/bundler-inject/) on overriding and adding gems.
+It can be useful to add additional gems to the bundle. This can be done without editing Hyku by adding them to the [./bundler.d/example.rb](./bundler.d/example.rb].  [See the bundler-inject documentation for more details](https://github.com/kbrock/bundler-inject/) on overriding and adding gems.
 
 **NOTE:** Do not add gems to the gemspec nor Gemfile.  When you add to the knapsack Gemfile/gemspec, when you bundle, you'll update the Hyku Gemfile; which will mean you might be updating Hyku prime with knapsack installation specific dependencies.  Instead add gems to `./bundler.d/example.rb`.
 
