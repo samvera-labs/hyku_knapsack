@@ -14,6 +14,7 @@ x-app: &app
     # This line is what makes the knapsack include use the local code instead of the remote gem
     - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
     - BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
+    - BUNDLE_BUNDLER_INJECT__GEM_PATH=/app/samvera/bundler.d
   volumes:
     - node_modules:/app/samvera/hyrax-webapp/node_modules:cached
     - uploads:/app/samvera/hyrax-webapp/public/uploads:cached
@@ -34,15 +35,9 @@ volumes:
   zoo:
 
 networks:
-  default:
-    name: stackcar
+  internal:
 
 services:
-  adminer:
-    extends:
-        file: hyrax-webapp/docker-compose.yml
-        service: adminer
-
   zoo:
     extends:
       file: hyrax-webapp/docker-compose.yml
@@ -52,21 +47,29 @@ services:
     extends:
       file: hyrax-webapp/docker-compose.yml
       service: solr
+    ports:
+      - '8983:8983'
 
   fcrepo:
     extends:
       file: hyrax-webapp/docker-compose.yml
       service: fcrepo
+    ports:
+      - '8080:8080'
 
   fits:
     extends:
       file: hyrax-webapp/docker-compose.yml
       service: fits
+    ports:
+      - '8080:8080'
 
   db:
     extends:
       file: hyrax-webapp/docker-compose.yml
       service: db
+    ports:
+      - '5432:5432'
 
   base:
     extends:
@@ -86,6 +89,11 @@ services:
       # This line is what makes the knapsack include use the local code instead of the remote gem
       - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
       - BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
+      - HYKU_ADMIN_HOST=localhost
+      - HYKU_DEFAULT_HOST=%{tenant}.localhost
+      - HYKU_ROOT_HOST=localhost
+    ports:
+      - "3000:3000"
 
   worker:
     <<: *app
@@ -101,7 +109,6 @@ services:
       args:
         BUILDKIT_INLINE_CACHE: 1
         APP_PATH: ./hyrax-webapp
-        BASE_IMAGE: ${BASE_IMAGE}
     image: ghcr.io/samvera-labs/hyku_knapsack/worker:${TAG:-latest}
     # Uncomment command to access container with out starting bin/worker. Useful for debugging or updating Gemfile.lock
     # command: sleep infinity
@@ -133,3 +140,5 @@ services:
     extends:
       file: hyrax-webapp/docker-compose.yml
       service: chrome
+    ports:
+      - '7900:7900'
