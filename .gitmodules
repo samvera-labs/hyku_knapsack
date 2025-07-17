@@ -1,3 +1,4 @@
 [submodule "hyrax-webapp"]
 	path = hyrax-webapp
 	url = https://github.com/samvera/hyku.git
+	branch = '6.1-stable'
