@@ -233,13 +233,24 @@ Deployment code can be added as needed.
 
 ### Theme files
 
-Theme files (views, css, etc) can be added to the knapsack. We recommend adding an [override comment](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides)
+Theme files (views, css, etc) can be added to the knapsack. We recommend adding an [override comment](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides#best-practices-for-view-overrides)
 
 ### Gems
 
 It can be useful to add additional gems to the bundle. This can be done without editing Hyku by adding them to the [./bundler.d/example.rb](./bundler.d/example.rb).  [See the bundler-inject documentation for more details](https://github.com/kbrock/bundler-inject/) on overriding and adding gems.
 
 **NOTE:** Do not add gems to the gemspec nor Gemfile.  When you add to the knapsack Gemfile/gemspec, when you bundle, you'll update the Hyku Gemfile; which will mean you might be updating Hyku prime with knapsack installation specific dependencies.  Instead add gems to `./bundler.d/example.rb`.
+
+### Work Resource Generator
+
+This project includes a Rails generator to create new custom work types within your Hyku Knapsack application. This generator is a modified version of the one provided by Hyrax, specifically adapted to ensure that all generated files are created within the knapsack directory structure, rather than in the core Hyku submodule.
+
+To use the generator, run the following command from the root of your knapsack project:
+
+```bash
+bundle exec rails generate hyku_knapsack:work_resource WorkType
+```
+Replace `WorkType` with the desired name for your new work type. The generator will create the necessary model, controller, form, indexer, and view files in the appropriate directories within the knapsack.
 
 ## Converting a Fork of Hyku Prime to a Knapsack
 
