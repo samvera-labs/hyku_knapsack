@@ -103,7 +103,7 @@ services:
       target: hyku-worker
       cache_from:
         - ghcr.io/samvera/hyku/base:latest
-        - ghcr.io/notch8/hykuup_knapsack/worker:latest
+        - ghcr.io/samvera-labs/hyku_knapsack/worker:latest
       args:
         BUILDKIT_INLINE_CACHE: 1
         APP_PATH: ./hyrax-webapp
