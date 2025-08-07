@@ -15,6 +15,7 @@
     - [Theme files](#theme-files)
     - [Gems](#gems)
   - [Converting a Fork of Hyku Prime to a Knapsack](#converting-a-fork-of-hyku-prime-to-a-knapsack)
+  - [Using the Knapsacker Tool](#using-the-knapsacker-tool)
   - [Installation](#installation)
   - [Contributing](#contributing)
   - [License](#license)
@@ -69,12 +70,43 @@ Naming the `samvera-labs/hyku_knapsack` as `prime` helps clarify what we mean.  
 
 If you choose to fork Knapsack, be aware that this will impact how you manage pull requests via Github.  Namely as you submit PRs on your Fork, the UI might default to applying that to the fork's origin (e.g. Knapsack upstream).
 
-To ease synchronization of your Knapsack and Knapsack “prime”, consider adding knapsack prime as a remote:
+To ease synchronization of your Knapsack and Knapsack "prime", consider adding knapsack prime as a remote:
 
 ```bash
 cd $PROJECT_NAME_knapsack
 git remote add prime https://github.com/samvera-labs/hyku_knapsack
 ```
+
+### Keeping Your Knapsack Updated with Prime
+
+Whether you've set up your Knapsack using a new repository or a fork, you may want to pull in updates from `hyku_knapsack` prime (i.e., `https://github.com/samvera-labs/hyku_knapsack`) over time. To do this, ensure you've added the upstream remote as `prime`:
+
+```bash
+git remote add prime https://github.com/samvera-labs/hyku_knapsack
+```
+
+To fetch and merge in changes from the prime repository:
+
+```bash
+git fetch prime
+git merge prime/main
+```
+
+If you prefer a cleaner commit history, you may rebase instead:
+
+```bash
+git fetch prime
+git rebase prime/main
+```
+
+After resolving any conflicts, push the updates to your repository:
+
+```bash
+git push origin main
+```
+
+This setup ensures your Knapsack stays aligned with ongoing improvements and bug fixes in the Hyku Knapsack project.
+
 
 ### Hyku and HykuKnapsack
 
@@ -138,6 +170,56 @@ When you want to bring down an updated version of your Hyku submodule, use the f
 
 This will checkout the submodule to the HEAD of the specified branch.
 
+### 🚀 Getting Started with Stack Car
+
+Hyku Knapsack uses [Stack Car](https://github.com/samvera-labs/stack_car) to manage Docker-based development.
+For alternative setup options, refer to [Hyku's Getting Started](https://github.com/samvera/hyku/blob/main/docs/getting-started.md).
+
+> **Important:** All commands below should be run from the **root of your Knapsack project**, **not** from within the `hyrax-webapp` submodule.
+
+#### 1. Install Stack Car (if you haven't already)
+
+```bash
+gem install stack_car
+```
+
+#### 2. Set up the development proxy
+
+You only need to run this once per installed version of Stack Car:
+
+```bash
+sc proxy cert
+sc proxy up
+```
+
+#### 3. Prepare and start the stack
+
+```bash
+sc pull     # Pull the latest base images
+sc build    # Build your local image
+sc up       # Start the container stack
+```
+
+#### 4. Open the app in your browser
+
+Once running, visit:
+
+```
+https://admin-{repo-name}.localhost.direct/
+```
+
+Example (for the Hyku Knapsack repo):
+
+```
+https://admin-hyku-knapsack.localhost.direct/
+```
+
+#### 5. Open a shell in the container (if needed)
+
+```bash
+sc sh
+```
+
 ### Overrides
 
 Before overriding anything, please think hard (or ask the community) about whether what you are working on is a bug or feature that can apply to Hyku itself. If it is, please make a branch in your Hyku checkout (`./hyrax-webapp`) and do the work there. Read more about [working with Hyku branches in your Knapsack](https://github.com/samvera-labs/hyku_knapsack/wiki/Hyku-Branches).
@@ -152,13 +234,24 @@ Deployment code can be added as needed.
 
 ### Theme files
 
-Theme files (views, css, etc) can be added to the knapsack. We recommend adding an [override comment](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides)
+Theme files (views, css, etc) can be added to the knapsack. We recommend adding an [override comment](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides#best-practices-for-view-overrides)
 
 ### Gems
 
 It can be useful to add additional gems to the bundle. This can be done without editing Hyku by adding them to the [./bundler.d/example.rb](./bundler.d/example.rb).  [See the bundler-inject documentation for more details](https://github.com/kbrock/bundler-inject/) on overriding and adding gems.
 
 **NOTE:** Do not add gems to the gemspec nor Gemfile.  When you add to the knapsack Gemfile/gemspec, when you bundle, you'll update the Hyku Gemfile; which will mean you might be updating Hyku prime with knapsack installation specific dependencies.  Instead add gems to `./bundler.d/example.rb`.
+
+### Work Resource Generator
+
+This project includes a Rails generator to create new custom work types within your Hyku Knapsack application. This generator is a modified version of the one provided by Hyrax, specifically adapted to ensure that all generated files are created within the knapsack directory structure, rather than in the core Hyku submodule.
+
+To use the generator, run the following command from the root of your knapsack project:
+
+```bash
+bundle exec rails generate hyku_knapsack:work_resource WorkType
+```
+Replace `WorkType` with the desired name for your new work type. The generator will create the necessary model, controller, form, indexer, and view files in the appropriate directories within the knapsack.
 
 ## Converting a Fork of Hyku Prime to a Knapsack
 
@@ -190,6 +283,106 @@ You can pipe that output into a file and begin working on reviewing and moving f
 Once you've moved over the files, you'll want to boot up your Knapsack and then work through your test plan.
 
 The `bin/knapsacker` is general purpose.  I have used it to compare one non-Knapsack Hyku instance against Samvera's Hyku.  I have also used it to compare a Knapsack's file against it's submodule Hyku instance.
+
+## Using the Knapsacker Tool
+
+The `bin/knapsacker` tool is a powerful utility for comparing files between different Hyku repositories. It helps identify which files are duplicates, which are unique, and which have been modified - making it easier to migrate from a traditional Hyku fork to a Knapsack structure or compare your Knapsack against upstream changes.
+
+### Basic Usage
+
+```bash
+bin/knapsacker -y <your-directory> -u <upstream-directory>
+```
+
+#### Parameters
+
+- `-y` (yours): Path to your Hyku repository or the directory you want to compare
+- `-u` (upstream): Path to the upstream/reference repository to compare against
+
+### Common Use Cases
+
+#### 1. Comparing Your Hyku Fork Against Knapsack Prime
+If you have an existing Hyku fork and want to see what needs to be moved to a Knapsack:
+
+```bash
+bin/knapsacker -y /path/to/your-hyku-fork -u .
+```
+
+#### 2. Comparing Your Knapsack Against Its Hyku Submodule
+To see what files in your Knapsack differ from the underlying Hyku application:
+
+```bash
+bin/knapsacker -y . -u ./hyrax-webapp
+```
+
+#### 3. Comparing Any Two Hyku Repositories
+```bash
+bin/knapsacker -y /path/to/repo-a -u /path/to/repo-b
+```
+
+### Understanding the Output
+
+The knapsacker generates three categories of files:
+
+#### Files with `=` prefix
+**exact duplicates** - Files in "yours" that are identical to "upstream" files. These typically don't need to be in your Knapsack since they're already provided by the base Hyku application.
+
+#### Files with `+` prefix  
+**unique to yours** - Files that exist in your repository but not in upstream. These are candidates for inclusion in your Knapsack as they represent custom functionality.
+
+#### Files with `Δ` prefix
+**modified files** - Files that exist in both repositories but have different content. These need review to determine if the changes should be moved to your Knapsack.
+
+### Example Output
+
+```
+------------------------------------------------------------------------
+Knapsacker run context:
+------------------------------------------------------------------------
+- Working Directory: /Users/example/hyku_knapsack
+- Your Dir: /path/to/your-hyku
+- Upstream Dir: .
+- Patterns to Check:
+  - spec/**/*.*
+  - app/**/*.*
+  - lib/**/*.*
+
+------------------------------------------------------------------
+Files in "yours" that are exact duplicates of "upstream" files
+They are prefixed with a `='
+------------------------------------------------------------------
+
+----------------------------------------------------
+Files that are in "yours" but not in "upstream" 
+They are prefixed with a `+'
+----------------------------------------------------
++ app/models/custom_work.rb
++ app/controllers/custom_controller.rb
++ lib/custom_service.rb
+
+-------------------------------------------------------------
+Files that are changed in "yours" relative to "upstream"
+They are prefixed with a `Δ'
+-------------------------------------------------------------
+Δ config/application.rb
+Δ app/models/user.rb
+```
+
+### Migration Workflow
+
+1. **Run the comparison**: Use knapsacker to generate the file comparison
+2. **Review `+` files**: These likely need to be copied to your Knapsack
+3. **Analyze `Δ` files**: Determine which changes are customizations vs. bug fixes
+   - Bug fixes should ideally be contributed back to Hyku prime
+   - Customizations should be moved to your Knapsack as decorators/overrides
+4. **Ignore `=` files**: These don't need to be in your Knapsack
+
+### Tips
+
+- **Pipe output to a file** for easier review: `bin/knapsacker -y ../your-hyku -u . > comparison.txt`
+- **Focus on meaningful changes**: Not all `Δ` files need to be moved - some differences might be configuration or environment-specific
+- **Use decorators when possible**: Instead of wholesale file replacement, consider using Rails decorators for modifications. See [best practices](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides)
+- **Test thoroughly**: After migration, ensure your Knapsack works correctly with your changes
 
 ## Installation
 
