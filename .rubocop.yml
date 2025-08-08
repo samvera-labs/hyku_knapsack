@@ -11,7 +11,7 @@ AllCops:
   - "hyrax-webapp/**/*"
 
 Metrics/BlockLength:
-  IgnoredMethods: ['included', 'describe', 'it', 'context']
+  AllowedMethods: ['included', 'describe', 'it', 'context']
   Exclude:
   - "spec/**/*.rb"
 

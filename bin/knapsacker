@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #!/usr/bin/env ruby -wU
 
 # The purpose of this script is to quickly assess which files should:
@@ -10,7 +12,6 @@ require 'optparse'
 config = { yours: './', upstream: './hyrax-webapp', patterns_to_check: ["spec/**/*.*", "app/**/*.*", "lib/**/*.*"] }
 
 command_name = File.basename(__FILE__)
-
 
 nlp = new_line_padding = " " * 37
 optparse = OptionParser.new do |options|
@@ -81,10 +82,9 @@ dir_glob_patterns_to_check.each do |pattern|
   end
 end
 
-
-puts "-"*72
+puts "-" * 72
 puts "Knapsacker run context:"
-puts "-"*72
+puts "-" * 72
 puts "- Working Directory: #{FileUtils.pwd}"
 puts "- Your Dir: #{yours}"
 puts "- Upstream Dir: #{upstream}"
@@ -100,9 +100,7 @@ puts "They are prefixed with a `='"
 puts "------------------------------------------------------------------"
 duplicates.each do |path|
   puts "= #{path}"
-  if ENV['RM_DUPS']
-    File.unlink(path)
-  end
+  File.unlink(path) if ENV['RM_DUPS']
 end
 
 puts ""
