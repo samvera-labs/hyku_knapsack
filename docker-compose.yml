@@ -3,12 +3,10 @@ x-app: &app
     context: .
     target: hyku-web
     cache_from:
-      - ghcr.io/samvera/hyku/base:latest
       - ghcr.io/samvera-labs/hyku_knapsack:latest
     args:
       BUILDKIT_INLINE_CACHE: 1
       APP_PATH: ./hyrax-webapp
-      BASE_TAG: ${BASE_TAG:-latest}
   image: ghcr.io/samvera-labs/hyku_knapsack:${TAG:-latest}
   env_file:
     - .env
@@ -17,7 +15,6 @@ x-app: &app
     # This line is what makes the knapsack include use the local code instead of the remote gem
     - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
     - BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
-    - BUNDLE_BUNDLER_INJECT__GEM_PATH=/app/samvera/bundler.d
   volumes:
     - node_modules:/app/samvera/hyrax-webapp/node_modules:cached
     - uploads:/app/samvera/hyrax-webapp/public/uploads:cached
@@ -73,14 +70,6 @@ services:
       file: hyrax-webapp/docker-compose.yml
       service: db
 
-  base:
-    <<: *app
-    extends:
-      file: hyrax-webapp/docker-compose.yml
-      service: base
-    image: ghcr.io/samvera/hyku/base:${BASE_TAG:-latest}
-    command: bash -l -c "echo 'base is only used for building base images, which in turn reduces image build times. It does not need to be run'"
-
   web:
     <<: *app
     extends:
@@ -88,10 +77,6 @@ services:
       service: web
     # Uncomment command to access container with out starting bin/web. Useful for debugging or updating Gemfile.lock
     # command: sleep infinity
-    environment:
-      # This line is what makes the knapsack include use the local code instead of the remote gem
-      - BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera
-      - BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true
 
   worker:
     <<: *app
@@ -102,12 +87,10 @@ services:
       context: .
       target: hyku-worker
       cache_from:
-        - ghcr.io/samvera/hyku/base:latest
         - ghcr.io/samvera-labs/hyku_knapsack/worker:latest
       args:
         BUILDKIT_INLINE_CACHE: 1
         APP_PATH: ./hyrax-webapp
-        BASE_TAG: ${BASE_TAG:-latest}
     image: ghcr.io/samvera-labs/hyku_knapsack/worker:${TAG:-latest}
     # Uncomment command to access container with out starting bin/worker. Useful for debugging or updating Gemfile.lock
     # command: sleep infinity
