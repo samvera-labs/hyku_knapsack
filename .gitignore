@@ -10,3 +10,5 @@ scratch.md
 
 /coverage
 file_cache/
+.bash_history
+/.cache
