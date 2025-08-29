@@ -13,8 +13,9 @@ on:
         required: false
         description: 'Pause the selected step to debug using tmate'
         type: choice
-        default: 'build'
+        default: ''
         options:
+          - ''
           - build
           - test
           - lint
@@ -27,6 +28,7 @@ jobs:
       platforms: "linux/amd64"
       webTarget: hyku-web
       workerTarget: hyku-worker
+
   test:
     needs: build
     uses: notch8/actions/.github/workflows/test.yaml@v1.0.4
@@ -40,4 +42,4 @@ jobs:
     with:
       webTarget: hyku-web
       workerTarget: hyku-worker
-      rubocop_cmd: "cd .. && bundle && bundle exec rubocop --parallel --format progress"
+      rubocop_cmd: "cd .. && bundle && bundle exec rubocop --parallel --format progress --format junit --out rubocop.xml"
