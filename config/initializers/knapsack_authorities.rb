@@ -37,7 +37,7 @@ module Qa
                   "There's no directory at #{path}. You must create it in order to use local authorities"
           end
 
-          all_names += Dir.entries(path).map { |f| File.basename(f, '.yml') if f =~ /yml$/ }.compact
+          all_names += Dir.entries(path).map { |f| File.basename(f, '.yml') if /yml$/.match?(f) }.compact
         end
 
         all_names.uniq
