@@ -1,0 +1,282 @@
+name: "Cross-Repo Compatibility Testing"
+run-name: Cross-Repo Compatibility Testing of ${{ github.ref_name }} by @${{ github.actor }}
+
+on:
+  push:
+    branches:
+      - main
+      - required_for_knapsack_instances
+  pull_request:
+    branches:
+      - main
+      - required_for_knapsack_instances
+  schedule:
+    # Run daily at 2 AM UTC to catch upstream changes
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      hyku_branch:
+        required: false
+        description: 'Hyku branch to test against (default: main)'
+        type: string
+        default: 'main'
+      test_matrix:
+        required: false
+        description: 'Test specific combinations'
+        type: choice
+        default: 'standard'
+        options:
+          - 'standard'
+          - 'extended'
+          - 'minimal'
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      hyku-changed: ${{ steps.changes.outputs.hyku }}
+      knapsack-changed: ${{ steps.changes.outputs.knapsack }}
+      matrix-strategy: ${{ steps.matrix.outputs.strategy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -E '^hyrax-webapp/'; then
+            echo "hyku=true" >> $GITHUB_OUTPUT
+          else
+            echo "hyku=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only HEAD~1 HEAD | grep -vE '^hyrax-webapp/'; then
+            echo "knapsack=true" >> $GITHUB_OUTPUT
+          else
+            echo "knapsack=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine test matrix strategy
+        id: matrix
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "strategy=extended" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "strategy=${{ inputs.test_matrix }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ steps.changes.outputs.hyku }}" == "true" || "${{ steps.changes.outputs.knapsack }}" == "true" ]]; then
+            echo "strategy=standard" >> $GITHUB_OUTPUT
+          else
+            echo "strategy=minimal" >> $GITHUB_OUTPUT
+          fi
+
+  compatibility-matrix:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.matrix-strategy != 'minimal'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Standard compatibility tests
+          - hyku_ref: "main"
+            knapsack_ref: "main"
+            test_suite: "core"
+            name: "Latest Main Branches"
+          - hyku_ref: "main" 
+            knapsack_ref: "required_for_knapsack_instances"
+            test_suite: "core"
+            name: "Hyku Main + Knapsack Stable"
+          # Extended tests (run on schedule or manual trigger)
+          - hyku_ref: "v1.0.0.beta2"
+            knapsack_ref: "main"
+            test_suite: "integration"
+            name: "Hyku Beta + Knapsack Main"
+            extended_only: true
+          - hyku_ref: "main"
+            knapsack_ref: "main"
+            test_suite: "full"
+            name: "Full Test Suite"
+            extended_only: true
+
+    steps:
+      - name: Skip extended tests for standard runs
+        if: matrix.extended_only && needs.detect-changes.outputs.matrix-strategy == 'standard'
+        run: |
+          echo "Skipping extended test for standard run"
+          exit 0
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set Hyku reference
+        run: |
+          if [[ "${{ inputs.hyku_branch }}" != "" ]]; then
+            echo "Using custom Hyku branch: ${{ inputs.hyku_branch }}"
+            echo "HYKU_REF=${{ inputs.hyku_branch }}" >> $GITHUB_ENV
+          else
+            echo "Using matrix Hyku ref: ${{ matrix.hyku_ref }}"
+            echo "HYKU_REF=${{ matrix.hyku_ref }}" >> $GITHUB_ENV
+          fi
+
+      - name: Setup Hyku submodule with specific ref
+        run: |
+          git submodule init
+          cd hyrax-webapp
+          git remote set-url origin https://github.com/samvera/hyku.git
+          git fetch origin $HYKU_REF
+          git checkout $HYKU_REF
+          cd ..
+          git add hyrax-webapp
+          echo "Testing with Hyku ref: $HYKU_REF"
+
+      - name: Update knapsack reference in Hyku Gemfile
+        run: |
+          cd hyrax-webapp
+          # Update the knapsack gem reference to current commit
+          CURRENT_SHA=$(cd .. && git rev-parse HEAD)
+          sed -i "s|github: 'samvera-labs/hyku_knapsack', branch: 'required_for_knapsack_instances'|github: 'samvera-labs/hyku_knapsack', ref: '$CURRENT_SHA'|" Gemfile
+          echo "Updated knapsack reference to SHA: $CURRENT_SHA"
+
+      - name: Create compatibility test environment
+        run: |
+          cp .env.sample .env
+          cp .env.development.sample .env.development
+          
+          # Ensure we use the local knapsack code
+          echo "BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera" >> .env.development
+          echo "BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true" >> .env.development
+
+      - name: Build and test compatibility
+        run: |
+          set -e
+          echo "=== Building Docker images ==="
+          docker-compose build web
+
+          echo "=== Running database setup ==="
+          docker-compose run --rm web bash -c "
+            cd /app/samvera/hyrax-webapp && 
+            bundle exec rails db:create db:migrate db:seed
+          "
+
+          case "${{ matrix.test_suite }}" in
+            "core")
+              echo "=== Running core compatibility tests ==="
+              docker-compose run --rm web bash -c "
+                cd /app/samvera/hyrax-webapp && 
+                bundle exec rspec spec/features/create_work_spec.rb spec/features/search_spec.rb
+              "
+              ;;
+            "integration") 
+              echo "=== Running integration tests ==="
+              docker-compose run --rm web bash -c "
+                cd /app/samvera/hyrax-webapp &&
+                bundle exec rspec spec/controllers/ spec/models/ --tag ~slow
+              "
+              ;;
+            "full")
+              echo "=== Running full test suite ==="
+              docker-compose run --rm web bash -c "
+                cd /app/samvera/hyrax-webapp &&
+                bundle exec rspec --exclude-pattern 'spec/system/**/*_spec.rb'
+              "
+              ;;
+          esac
+
+      - name: Test knapsack override functionality
+        run: |
+          echo "=== Testing knapsack overrides work correctly ==="
+          docker-compose run --rm web bash -c "
+            cd /app/samvera/hyrax-webapp &&
+            bundle exec rails runner 'puts HykuKnapsack::VERSION; puts \"Knapsack loaded successfully\"'
+          "
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose down -v || true
+          docker system prune -f || true
+
+  compatibility-report:
+    needs: [detect-changes, compatibility-matrix]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate compatibility report
+        run: |
+          echo "# Cross-Repo Compatibility Report" > compatibility-report.md
+          echo "" >> compatibility-report.md
+          echo "**Trigger:** ${{ github.event_name }}" >> compatibility-report.md
+          echo "**Strategy:** ${{ needs.detect-changes.outputs.matrix-strategy }}" >> compatibility-report.md
+          echo "**Knapsack SHA:** ${{ github.sha }}" >> compatibility-report.md
+          echo "" >> compatibility-report.md
+          
+          if [[ "${{ needs.compatibility-matrix.result }}" == "success" ]]; then
+            echo "✅ **Status:** All compatibility tests passed" >> compatibility-report.md
+          elif [[ "${{ needs.compatibility-matrix.result }}" == "failure" ]]; then
+            echo "❌ **Status:** Some compatibility tests failed" >> compatibility-report.md
+          else
+            echo "⚠️ **Status:** Tests were skipped or cancelled" >> compatibility-report.md
+          fi
+
+      - name: Upload compatibility report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-report-${{ github.sha }}
+          path: compatibility-report.md
+          retention-days: 30
+
+  notify-on-failure:
+    needs: [compatibility-matrix]
+    if: failure() && (github.event_name == 'schedule' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub issue on failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Cross-repo compatibility test failed for ${context.sha.substring(0, 7)}`;
+            const body = `
+            The cross-repository compatibility tests have failed.
+            
+            **Details:**
+            - Commit: ${context.sha}
+            - Workflow: ${context.workflow}
+            - Event: ${context.eventName}
+            - Run: ${context.runNumber}
+            
+            Please review the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details.
+            
+            This issue was automatically created by the compatibility testing workflow.
+            `;
+            
+            // Check if there's already an open issue for compatibility failures
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['compatibility-failure', 'automated'],
+              state: 'open'
+            });
+            
+            if (existingIssues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['compatibility-failure', 'automated', 'bug']
+              });
+            } else {
+              // Add a comment to existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssues.data[0].number,
+                body: `Another compatibility failure occurred in run ${context.runNumber}. [View details](${context.payload.repository.html_url}/actions/runs/${context.runId})`
+              });
+            }

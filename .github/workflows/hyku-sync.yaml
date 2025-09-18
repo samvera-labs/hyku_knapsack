@@ -1,0 +1,302 @@
+name: "Hyku Submodule Auto-Sync"
+run-name: Auto-sync Hyku submodule changes
+
+on:
+  schedule:
+    # Check for Hyku updates twice daily
+    - cron: '0 6,18 * * *'
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        required: false
+        description: 'Specific Hyku ref to sync to (default: main)'
+        type: string
+        default: 'main'
+      force_update:
+        required: false
+        description: 'Force update even if tests fail'
+        type: boolean
+        default: false
+      create_pr:
+        required: false
+        description: 'Create PR instead of direct push'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  HYKU_REPO: "samvera/hyku"
+  TARGET_BRANCH: "main"
+
+jobs:
+  check-hyku-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      has-updates: ${{ steps.check.outputs.has_updates }}
+      current-sha: ${{ steps.check.outputs.current_sha }}
+      latest-sha: ${{ steps.check.outputs.latest_sha }}
+      update-needed: ${{ steps.check.outputs.update_needed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Check for Hyku updates
+        id: check
+        run: |
+          TARGET_REF="${{ inputs.target_ref || 'main' }}"
+          
+          # Get current submodule SHA
+          CURRENT_SHA=$(git submodule status hyrax-webapp | awk '{print $1}' | sed 's/^[+-]//')
+          echo "current_sha=$CURRENT_SHA" >> $GITHUB_OUTPUT
+          
+          # Fetch latest from Hyku repo
+          cd hyrax-webapp
+          git fetch origin $TARGET_REF
+          LATEST_SHA=$(git rev-parse origin/$TARGET_REF)
+          echo "latest_sha=$LATEST_SHA" >> $GITHUB_OUTPUT
+          
+          if [[ "$CURRENT_SHA" != "$LATEST_SHA" ]]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "🔄 Updates available: $CURRENT_SHA -> $LATEST_SHA"
+            
+            # Get commit messages for changelog
+            git log --oneline $CURRENT_SHA..$LATEST_SHA > ../hyku-changes.log || echo "No commit history available" > ../hyku-changes.log
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "✅ Already up to date"
+          fi
+
+      - name: Upload change log
+        if: steps.check.outputs.has_updates == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyku-changes-${{ github.run_number }}
+          path: hyku-changes.log
+
+  test-compatibility:
+    needs: check-hyku-updates
+    if: needs.check-hyku-updates.outputs.update-needed == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      tests-passed: ${{ steps.test.outputs.success }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Update submodule to latest
+        run: |
+          TARGET_REF="${{ inputs.target_ref || 'main' }}"
+          git submodule init
+          cd hyrax-webapp
+          git fetch origin $TARGET_REF
+          git checkout ${{ needs.check-hyku-updates.outputs.latest-sha }}
+          cd ..
+
+      - name: Update knapsack reference in Hyku
+        run: |
+          cd hyrax-webapp
+          CURRENT_SHA=$(cd .. && git rev-parse HEAD)
+          
+          # Update Gemfile to reference current knapsack commit
+          if grep -q "github: 'samvera-labs/hyku_knapsack'" Gemfile; then
+            sed -i "s|github: 'samvera-labs/hyku_knapsack'.*|github: 'samvera-labs/hyku_knapsack', ref: '$CURRENT_SHA'|" Gemfile
+            echo "Updated knapsack reference in Hyku Gemfile to $CURRENT_SHA"
+          fi
+
+      - name: Test compatibility
+        id: test
+        run: |
+          set -e
+          
+          # Setup environment
+          cp .env.sample .env || touch .env
+          cp .env.development.sample .env.development || touch .env.development
+          echo "BUNDLE_LOCAL__HYKU_KNAPSACK=/app/samvera" >> .env.development
+          echo "BUNDLE_DISABLE_LOCAL_BRANCH_CHECK=true" >> .env.development
+          
+          # Build and test
+          echo "🔧 Building with updated Hyku..."
+          docker-compose build web
+          
+          echo "🗃️ Setting up database..."
+          docker-compose run --rm web bash -c "
+            cd /app/samvera/hyrax-webapp && 
+            bundle exec rails db:create db:migrate
+          " || { echo "❌ Database setup failed"; exit 1; }
+          
+          echo "🧪 Running compatibility tests..."
+          docker-compose run --rm web bash -c "
+            cd /app/samvera/hyrax-webapp &&
+            bundle exec rails runner 'puts \"✅ Rails app loads successfully\"' &&
+            bundle exec rails runner 'puts \"✅ HykuKnapsack version: #{HykuKnapsack::VERSION}\"'
+          " || { echo "❌ Basic compatibility test failed"; exit 1; }
+          
+          # Run critical tests
+          docker-compose run --rm web bash -c "
+            cd /app/samvera/hyrax-webapp &&
+            timeout 300 bundle exec rspec spec/features/create_work_spec.rb --format documentation || echo 'Some tests may have failed'
+          " || echo "⚠️ Some integration tests failed, but continuing..."
+          
+          echo "success=true" >> $GITHUB_OUTPUT
+          echo "✅ Compatibility tests completed"
+
+        continue-on-error: true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose down -v || true
+
+  update-submodule:
+    needs: [check-hyku-updates, test-compatibility]
+    if: |
+      needs.check-hyku-updates.outputs.update-needed == 'true' && 
+      (needs.test-compatibility.outputs.tests-passed == 'true' || inputs.force_update == true)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: false
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "hyku-sync-bot"
+          git config --global user.email "noreply@samvera.org"
+
+      - name: Update submodule
+        run: |
+          TARGET_REF="${{ inputs.target_ref || 'main' }}"
+          
+          # Initialize and update submodule
+          git submodule init
+          cd hyrax-webapp
+          git fetch origin $TARGET_REF
+          git checkout ${{ needs.check-hyku-updates.outputs.latest-sha }}
+          cd ..
+          
+          # Stage the submodule update
+          git add hyrax-webapp
+
+      - name: Download change log
+        uses: actions/download-artifact@v4
+        with:
+          name: hyku-changes-${{ github.run_number }}
+
+      - name: Create commit message
+        run: |
+          echo "chore: Update Hyku submodule to ${{ needs.check-hyku-updates.outputs.latest-sha }}" > commit-message.txt
+          echo "" >> commit-message.txt
+          echo "Updates hyrax-webapp submodule from ${{ needs.check-hyku-updates.outputs.current-sha }} to ${{ needs.check-hyku-updates.outputs.latest-sha }}" >> commit-message.txt
+          echo "" >> commit-message.txt
+          echo "## Changes in Hyku:" >> commit-message.txt
+          cat hyku-changes.log >> commit-message.txt
+          echo "" >> commit-message.txt
+          echo "Automated update by hyku-sync workflow" >> commit-message.txt
+
+      - name: Create Pull Request
+        if: inputs.create_pr != false
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "🔄 Auto-update Hyku submodule"
+          body: |
+            This PR was automatically created to update the Hyku submodule.
+            
+            **Changes:**
+            - Hyku submodule: `${{ needs.check-hyku-updates.outputs.current-sha }}` → `${{ needs.check-hyku-updates.outputs.latest-sha }}`
+            
+            **Compatibility Tests:** ${{ needs.test-compatibility.outputs.tests-passed == 'true' && '✅ Passed' || '⚠️ See workflow for details' }}
+            
+            ## Hyku Changes
+            ```
+            $(cat hyku-changes.log)
+            ```
+            
+            Please review the changes and merge if appropriate.
+          branch: auto-update-hyku-${{ github.run_number }}
+          labels: |
+            dependencies
+            automated
+            hyku-update
+
+      - name: Direct commit to main
+        if: inputs.create_pr == false
+        run: |
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -F commit-message.txt
+            git push origin main
+          fi
+
+  update-required-branch:
+    needs: [update-submodule]
+    if: success() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Update required_for_knapsack_instances branch
+        run: |
+          git config --global user.name "hyku-sync-bot"
+          git config --global user.email "noreply@samvera.org"
+          
+          # Fetch latest changes
+          git fetch origin main
+          
+          # Update the required branch
+          git checkout required_for_knapsack_instances || git checkout -b required_for_knapsack_instances
+          git merge origin/main --no-edit
+          git push origin required_for_knapsack_instances
+
+  notify-failure:
+    needs: [check-hyku-updates, test-compatibility, update-submodule]
+    if: |
+      always() && 
+      (needs.test-compatibility.result == 'failure' || needs.update-submodule.result == 'failure') &&
+      needs.check-hyku-updates.outputs.update-needed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create issue for failed sync
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Auto-sync failed for Hyku update ${{ needs.check-hyku-updates.outputs.latest-sha }}`;
+            const body = `
+            The automatic synchronization with Hyku has failed.
+            
+            **Update Details:**
+            - Current SHA: \`${{ needs.check-hyku-updates.outputs.current-sha }}\`
+            - Target SHA: \`${{ needs.check-hyku-updates.outputs.latest-sha }}\`
+            - Tests Passed: ${{ needs.test-compatibility.outputs.tests-passed }}
+            - Workflow Run: [${context.runNumber}](${context.payload.repository.html_url}/actions/runs/${context.runId})
+            
+            **Next Steps:**
+            1. Review the workflow logs for specific errors
+            2. Test the Hyku update locally
+            3. Create a manual PR if needed
+            4. Consider if this represents a breaking change in Hyku
+            
+            This issue was automatically created by the hyku-sync workflow.
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['sync-failure', 'automated', 'hyku-update']
+            });

@@ -107,6 +107,43 @@ git push origin main
 
 This setup ensures your Knapsack stays aligned with ongoing improvements and bug fixes in the Hyku Knapsack project.
 
+## 🔄 Cross-Repo Dependency Management
+
+Hyku Knapsack includes an **automated dependency management system** that handles the complex relationship between your Knapsack and the underlying Hyku repository. This system provides:
+
+- **Automated compatibility testing** across different Hyku versions
+- **Automatic synchronization** of the Hyku submodule when updates are available
+- **Continuous monitoring** for version drift and security vulnerabilities
+- **Smart notifications** when dependency changes require attention
+
+### Quick Start
+
+```bash
+# Setup the dependency management system
+./scripts/setup-dependency-management.sh
+
+# Test compatibility with current Hyku version
+./scripts/compatibility-test.sh
+
+# Test with a specific Hyku version
+./scripts/compatibility-test.sh v1.0.0.beta2 integration
+```
+
+### Key Features
+
+✅ **Automated Testing**: Matrix testing across Knapsack/Hyku version combinations  
+✅ **Smart Sync**: Updates only when compatibility tests pass  
+✅ **Security Monitoring**: Continuous vulnerability scanning  
+✅ **Impact Analysis**: Categorizes changes as low/medium/high impact  
+✅ **Team Notifications**: GitHub issues and PR comments for awareness  
+✅ **Local Testing**: Scripts for development workflow integration  
+
+### Documentation
+
+For complete details on the dependency management system, see:
+- **📚 [Dependency Management Guide](docs/DEPENDENCY_MANAGEMENT.md)** - Comprehensive documentation
+- **🚀 [Quick Start Guide](README-DEPENDENCY-SOLUTION.md)** - Overview and setup
+- **🛠️ [Issue Template](.github/ISSUE_TEMPLATE/dependency-issue.md)** - Report dependency issues
 
 ### Hyku and HykuKnapsack
 

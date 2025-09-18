@@ -1,0 +1,283 @@
+name: "Dependency Change Notifications"
+run-name: Notify on dependency changes
+
+on:
+  push:
+    branches:
+      - main
+      - required_for_knapsack_instances
+    paths:
+      - 'hyrax-webapp/**'
+      - 'Gemfile*'
+      - 'hyku_knapsack.gemspec'
+      - '.github/workflows/cross-repo-compatibility.yaml'
+      - '.github/workflows/hyku-sync.yaml'
+      - '.github/workflows/dependency-monitor.yaml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'hyrax-webapp/**'
+      - 'Gemfile*'
+      - 'hyku_knapsack.gemspec'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  detect-dependency-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      hyku-changed: ${{ steps.changes.outputs.hyku }}
+      gemfile-changed: ${{ steps.changes.outputs.gemfile }}
+      gemspec-changed: ${{ steps.changes.outputs.gemspec }}
+      workflow-changed: ${{ steps.changes.outputs.workflow }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect specific changes
+        id: changes
+        run: |
+          # Check what changed
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          echo "Changed files: $CHANGED_FILES"
+          
+          if echo "$CHANGED_FILES" | grep -q '^hyrax-webapp/'; then
+            echo "hyku=true" >> $GITHUB_OUTPUT
+          else
+            echo "hyku=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q '^Gemfile'; then
+            echo "gemfile=true" >> $GITHUB_OUTPUT
+          else
+            echo "gemfile=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q '\.gemspec$'; then
+            echo "gemspec=true" >> $GITHUB_OUTPUT
+          else
+            echo "gemspec=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q '\.github/workflows.*dependency'; then
+            echo "workflow=true" >> $GITHUB_OUTPUT
+          else
+            echo "workflow=false" >> $GITHUB_OUTPUT
+          fi
+
+  analyze-impact:
+    needs: detect-dependency-changes
+    if: |
+      needs.detect-dependency-changes.outputs.hyku == 'true' ||
+      needs.detect-dependency-changes.outputs.gemfile == 'true' ||
+      needs.detect-dependency-changes.outputs.gemspec == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      impact-level: ${{ steps.impact.outputs.level }}
+      recommendations: ${{ steps.impact.outputs.recommendations }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - name: Analyze change impact
+        id: impact
+        run: |
+          IMPACT_LEVEL="low"
+          RECOMMENDATIONS=""
+          
+          # Check Hyku submodule changes
+          if [[ "${{ needs.detect-dependency-changes.outputs.hyku }}" == "true" ]]; then
+            cd hyrax-webapp
+            
+            # Get the range of changes
+            PREV_SHA=$(git log --format="%H" -n 1 HEAD~1 2>/dev/null || echo "unknown")
+            CURR_SHA=$(git rev-parse HEAD)
+            
+            if [[ "$PREV_SHA" != "unknown" ]]; then
+              COMMIT_COUNT=$(git rev-list --count $PREV_SHA..$CURR_SHA 2>/dev/null || echo "0")
+              
+              if [[ "$COMMIT_COUNT" -gt 50 ]]; then
+                IMPACT_LEVEL="high"
+                RECOMMENDATIONS="$RECOMMENDATIONS- Major Hyku update detected ($COMMIT_COUNT commits)\n"
+                RECOMMENDATIONS="$RECOMMENDATIONS- Run full compatibility test suite\n"
+                RECOMMENDATIONS="$RECOMMENDATIONS- Review Hyku changelog for breaking changes\n"
+              elif [[ "$COMMIT_COUNT" -gt 10 ]]; then
+                IMPACT_LEVEL="medium"
+                RECOMMENDATIONS="$RECOMMENDATIONS- Moderate Hyku update ($COMMIT_COUNT commits)\n"
+                RECOMMENDATIONS="$RECOMMENDATIONS- Run integration tests\n"
+              else
+                RECOMMENDATIONS="$RECOMMENDATIONS- Minor Hyku update ($COMMIT_COUNT commits)\n"
+                RECOMMENDATIONS="$RECOMMENDATIONS- Run core compatibility tests\n"
+              fi
+              
+              # Check for major version changes
+              if git log $PREV_SHA..$CURR_SHA --oneline | grep -i "major\|breaking\|bump.*version"; then
+                IMPACT_LEVEL="high"
+                RECOMMENDATIONS="$RECOMMENDATIONS- Breaking changes detected in commit messages\n"
+              fi
+            fi
+            
+            cd ..
+          fi
+          
+          # Check Gemfile changes
+          if [[ "${{ needs.detect-dependency-changes.outputs.gemfile }}" == "true" ]]; then
+            if git diff HEAD~1 HEAD Gemfile | grep -E "^\+.*gem|^\-.*gem"; then
+              IMPACT_LEVEL="medium"
+              RECOMMENDATIONS="$RECOMMENDATIONS- Gem dependencies changed\n"
+              RECOMMENDATIONS="$RECOMMENDATIONS- Update bundle and test compatibility\n"
+            fi
+          fi
+          
+          # Check gemspec changes
+          if [[ "${{ needs.detect-dependency-changes.outputs.gemspec }}" == "true" ]]; then
+            if git diff HEAD~1 HEAD *.gemspec | grep -E "version|dependency"; then
+              IMPACT_LEVEL="medium"
+              RECOMMENDATIONS="$RECOMMENDATIONS- Gem specification changed\n"
+              RECOMMENDATIONS="$RECOMMENDATIONS- May affect dependent projects\n"
+            fi
+          fi
+          
+          echo "level=$IMPACT_LEVEL" >> $GITHUB_OUTPUT
+          echo "recommendations<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$RECOMMENDATIONS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  notify-team:
+    needs: [detect-dependency-changes, analyze-impact]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create notification comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const impact = '${{ needs.analyze-impact.outputs.impact-level }}';
+            const recommendations = `${{ needs.analyze-impact.outputs.recommendations }}`;
+            
+            const impactEmojis = {
+              'low': '🟢',
+              'medium': '🟡', 
+              'high': '🔴'
+            };
+            
+            const body = `
+            ## 🔗 Dependency Change Detected
+            
+            **Impact Level:** ${impactEmojis[impact] || '⚪'} ${impact.toUpperCase()}
+            
+            **Changes Detected:**
+            - Hyku submodule: ${{ needs.detect-dependency-changes.outputs.hyku == 'true' && '✅ Updated' || '⚪ No changes' }}
+            - Gemfile: ${{ needs.detect-dependency-changes.outputs.gemfile == 'true' && '✅ Modified' || '⚪ No changes' }}
+            - Gemspec: ${{ needs.detect-dependency-changes.outputs.gemspec == 'true' && '✅ Modified' || '⚪ No changes' }}
+            
+            **Recommendations:**
+            ${recommendations || 'No specific recommendations at this time.'}
+            
+            **Next Steps:**
+            - Monitor the cross-repo compatibility workflow results
+            - Review any automated test failures
+            - Consider running manual compatibility tests for critical changes
+            
+            ---
+            *This notification was generated automatically by the dependency change detection workflow.*
+            `;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Create tracking issue for high-impact changes
+        if: needs.analyze-impact.outputs.impact-level == 'high' && github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const recommendations = `${{ needs.analyze-impact.outputs.recommendations }}`;
+            
+            const title = `High-impact dependency change - ${context.sha.substring(0, 7)}`;
+            const body = `
+            A high-impact dependency change has been detected and merged to main.
+            
+            **Commit:** ${context.sha}
+            **Author:** @${context.actor}
+            **Changes:**
+            - Hyku submodule: ${{ needs.detect-dependency-changes.outputs.hyku == 'true' && 'Updated' || 'No changes' }}
+            - Gemfile: ${{ needs.detect-dependency-changes.outputs.gemfile == 'true' && 'Modified' || 'No changes' }}
+            - Gemspec: ${{ needs.detect-dependency-changes.outputs.gemspec == 'true' && 'Modified' || 'No changes' }}
+            
+            **Recommendations:**
+            ${recommendations}
+            
+            **Action Items:**
+            - [ ] Monitor compatibility test results
+            - [ ] Test with dependent projects
+            - [ ] Update documentation if needed
+            - [ ] Communicate breaking changes to users
+            - [ ] Close this issue once impact is assessed
+            
+            **Automated Workflows:**
+            - Cross-repo compatibility tests will run automatically
+            - Dependency monitor will track for regressions
+            - Auto-sync may be affected by these changes
+            
+            /cc @maintainers
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['high-impact-change', 'dependency-management', 'automated']
+            });
+
+  trigger-compatibility-tests:
+    needs: [detect-dependency-changes, analyze-impact]
+    if: |
+      needs.detect-dependency-changes.outputs.hyku == 'true' &&
+      (needs.analyze-impact.outputs.impact-level == 'medium' || needs.analyze-impact.outputs.impact-level == 'high')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger extended compatibility testing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const impact = '${{ needs.analyze-impact.outputs.impact-level }}';
+            const testMatrix = impact === 'high' ? 'extended' : 'standard';
+            
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'cross-repo-compatibility.yaml',
+              ref: 'main',
+              inputs: {
+                test_matrix: testMatrix
+              }
+            });
+            
+            console.log(`Triggered compatibility testing with ${testMatrix} matrix due to ${impact} impact change`);
+
+      - name: Comment on workflow trigger
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const impact = '${{ needs.analyze-impact.outputs.impact-level }}';
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 Triggered extended compatibility testing due to ${impact} impact dependency changes. [View workflow runs](${context.payload.repository.html_url}/actions/workflows/cross-repo-compatibility.yaml).`
+            });

@@ -1,0 +1,294 @@
+name: "Dependency Monitor"
+run-name: Monitor cross-repo dependencies and compatibility
+
+on:
+  schedule:
+    # Run every 4 hours to monitor for issues
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+    inputs:
+      check_type:
+        required: false
+        description: 'Type of check to perform'
+        type: choice
+        default: 'all'
+        options:
+          - 'all'
+          - 'version-drift'
+          - 'security'
+          - 'performance'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  version-drift-check:
+    runs-on: ubuntu-latest
+    outputs:
+      drift-detected: ${{ steps.check.outputs.drift_detected }}
+      report: ${{ steps.check.outputs.report }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Check for version drift
+        id: check
+        run: |
+          echo "# Version Drift Report" > drift-report.md
+          echo "" >> drift-report.md
+          
+          DRIFT_DETECTED=false
+          
+          # Check Hyku submodule vs latest releases
+          cd hyrax-webapp
+          CURRENT_SHA=$(git rev-parse HEAD)
+          LATEST_MAIN=$(git ls-remote origin main | cut -f1)
+          
+          echo "## Hyku Submodule Status" >> ../drift-report.md
+          echo "- **Current SHA:** \`$CURRENT_SHA\`" >> ../drift-report.md
+          echo "- **Latest Main:** \`$LATEST_MAIN\`" >> ../drift-report.md
+          
+          if [[ "$CURRENT_SHA" != "$LATEST_MAIN" ]]; then
+            COMMITS_BEHIND=$(git rev-list --count $CURRENT_SHA..$LATEST_MAIN 2>/dev/null || echo "unknown")
+            echo "- **Status:** ⚠️ Behind by $COMMITS_BEHIND commits" >> ../drift-report.md
+            DRIFT_DETECTED=true
+          else
+            echo "- **Status:** ✅ Up to date" >> ../drift-report.md
+          fi
+          
+          # Check for security advisories
+          echo "" >> ../drift-report.md
+          echo "## Security Check" >> ../drift-report.md
+          
+          cd ..
+          if command -v bundler-audit >/dev/null 2>&1; then
+            docker-compose run --rm web bash -c "
+              cd /app/samvera/hyrax-webapp &&
+              gem install bundler-audit &&
+              bundler-audit check --update
+            " > security-check.log 2>&1 || SECURITY_ISSUES=true
+            
+            if [[ "$SECURITY_ISSUES" == "true" ]]; then
+              echo "- **Status:** ⚠️ Security advisories found" >> drift-report.md
+              echo "\`\`\`" >> drift-report.md
+              tail -20 security-check.log >> drift-report.md
+              echo "\`\`\`" >> drift-report.md
+              DRIFT_DETECTED=true
+            else
+              echo "- **Status:** ✅ No known security issues" >> drift-report.md
+            fi
+          else
+            echo "- **Status:** ℹ️ Security check skipped (bundler-audit not available)" >> drift-report.md
+          fi
+          
+          # Check dependency versions
+          echo "" >> drift-report.md
+          echo "## Dependency Versions" >> drift-report.md
+          
+          cd hyrax-webapp
+          RAILS_VERSION=$(grep "gem 'rails'" Gemfile | head -1 || echo "Not found")
+          echo "- **Rails:** $RAILS_VERSION" >> ../drift-report.md
+          
+          RUBY_VERSION=$(cat .ruby-version 2>/dev/null || echo "Not specified")
+          echo "- **Ruby:** $RUBY_VERSION" >> ../drift-report.md
+          
+          echo "drift_detected=$DRIFT_DETECTED" >> $GITHUB_OUTPUT
+          
+          # Upload report for use in other jobs
+          cat ../drift-report.md > /tmp/drift-report.md
+
+      - name: Upload drift report
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report-${{ github.run_number }}
+          path: drift-report.md
+
+  performance-check:
+    if: inputs.check_type == 'all' || inputs.check_type == 'performance'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Build for performance testing
+        run: |
+          cp .env.sample .env || touch .env
+          cp .env.development.sample .env.development || touch .env.development
+          docker-compose build web
+
+      - name: Run performance smoke tests
+        id: perf
+        run: |
+          echo "🚀 Starting performance smoke tests..."
+          
+          # Start services
+          docker-compose up -d
+          
+          # Wait for services to be ready
+          timeout 60 bash -c 'until docker-compose exec -T web curl -f http://localhost:3000/healthz 2>/dev/null; do sleep 2; done' || {
+            echo "❌ Services failed to start"
+            exit 1
+          }
+          
+          # Basic performance test - homepage load time
+          LOAD_TIME=$(docker-compose exec -T web bash -c "
+            cd /app/samvera/hyrax-webapp &&
+            time curl -s http://localhost:3000 > /dev/null
+          " 2>&1 | grep real | awk '{print $2}')
+          
+          echo "📊 Homepage load time: $LOAD_TIME"
+          
+          # Memory usage check
+          MEMORY_USAGE=$(docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}" | grep web)
+          echo "💾 Memory usage: $MEMORY_USAGE"
+
+        continue-on-error: true
+
+      - name: Cleanup performance test
+        if: always()
+        run: |
+          docker-compose down -v || true
+
+  create-monitoring-report:
+    needs: [version-drift-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download drift report
+        if: needs.version-drift-check.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: drift-report-${{ github.run_number }}
+
+      - name: Create comprehensive monitoring report
+        run: |
+          echo "# Dependency Monitoring Report" > monitoring-report.md
+          echo "**Generated:** $(date)" >> monitoring-report.md
+          echo "**Workflow:** ${{ github.workflow }}" >> monitoring-report.md
+          echo "" >> monitoring-report.md
+          
+          if [[ -f drift-report.md ]]; then
+            cat drift-report.md >> monitoring-report.md
+          else
+            echo "## Status" >> monitoring-report.md
+            echo "⚠️ Drift check could not be completed" >> monitoring-report.md
+          fi
+          
+          echo "" >> monitoring-report.md
+          echo "## Recommendations" >> monitoring-report.md
+          
+          if [|| "${{ needs.version-drift-check.outputs.drift-detected }}" == "true" ]]; then
+            echo "- 🔄 Consider running the hyku-sync workflow to update dependencies" >> monitoring-report.md
+            echo "- 🧪 Review and test compatibility before merging updates" >> monitoring-report.md
+            echo "- 📋 Check for breaking changes in Hyku release notes" >> monitoring-report.md
+          else
+            echo "- ✅ Dependencies are up to date" >> monitoring-report.md
+            echo "- 🔍 Continue monitoring for future updates" >> monitoring-report.md
+          fi
+          
+          echo "" >> monitoring-report.md
+          echo "---" >> monitoring-report.md
+          echo "*This report was generated automatically by the dependency monitor workflow.*" >> monitoring-report.md
+
+      - name: Upload monitoring report
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitoring-report-${{ github.run_number }}
+          path: monitoring-report.md
+          retention-days: 14
+
+  create-issue-if-critical:
+    needs: [version-drift-check]
+    if: |
+      needs.version-drift-check.outputs.drift-detected == 'true' && 
+      github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for existing monitoring issues
+        id: existing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'dependency-drift,automated',
+              state: 'open'
+            });
+            
+            return issues.data.length > 0 ? 'true' : 'false';
+
+      - name: Download drift report
+        if: steps.existing.outputs.result == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: drift-report-${{ github.run_number }}
+
+      - name: Create dependency drift issue
+        if: steps.existing.outputs.result == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let reportContent = '';
+            
+            try {
+              reportContent = fs.readFileSync('drift-report.md', 'utf8');
+            } catch (error) {
+              reportContent = 'Report could not be loaded.';
+            }
+            
+            const title = `Dependency drift detected - ${new Date().toISOString().split('T')[0]}`;
+            const body = `
+            The dependency monitor has detected version drift in our dependencies.
+            
+            ${reportContent}
+            
+            ## Actions Required
+            
+            1. **Review the drift report above**
+            2. **Run compatibility tests:** Use the cross-repo-compatibility workflow
+            3. **Update dependencies:** Use the hyku-sync workflow if safe
+            4. **Security patches:** Address any security advisories immediately
+            
+            ## Automation
+            
+            - This issue was created automatically by the dependency monitor
+            - New issues won't be created while this one is open
+            - Close this issue once drift has been addressed
+            
+            /cc @maintainers
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['dependency-drift', 'automated', 'maintenance']
+            });
+
+      - name: Comment on existing issue
+        if: steps.existing.outputs.result == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'dependency-drift,automated',
+              state: 'open'
+            });
+            
+            if (issues.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `🔄 Dependency drift still detected in workflow run [${context.runNumber}](${context.payload.repository.html_url}/actions/runs/${context.runId}). Please review the latest monitoring report.`
+              });
+            }
