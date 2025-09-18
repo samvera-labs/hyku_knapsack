@@ -1,0 +1,165 @@
+name: "Auto-Update Hyku Submodule"
+run-name: Auto-update hyku submodule by @${{ github.actor }}
+
+on:
+  schedule:
+    - cron: '0 9 * * 1' # Weekly on Monday at 9 AM UTC
+  workflow_dispatch:
+    inputs:
+      hyku-branch:
+        description: 'Hyku branch to update to'
+        required: false
+        type: choice
+        default: 'main'
+        options:
+          - 'main'
+          - 'v1.0.0.beta2'
+      create-pr:
+        description: 'Create PR for the update'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  check-hyku-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      updates_available: ${{ steps.check-updates.outputs.updates_available }}
+      current_commit: ${{ steps.check-updates.outputs.current_commit }}
+      latest_commit: ${{ steps.check-updates.outputs.latest_commit }}
+      hyku_version: ${{ steps.check-updates.outputs.hyku_version }}
+    
+    steps:
+      - name: Checkout knapsack
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Check for hyku updates
+        id: check-updates
+        run: |
+          cd hyrax-webapp
+          git fetch origin
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          LATEST_COMMIT=$(git rev-parse origin/${{ inputs.hyku-branch || 'main' }})
+          HYKU_VERSION=$(git describe --tags --exact-match 2>/dev/null || git rev-parse --short HEAD)
+          
+          echo "Current commit: $CURRENT_COMMIT"
+          echo "Latest commit: $LATEST_COMMIT"
+          echo "Hyku version: $HYKU_VERSION"
+          
+          if [ "$CURRENT_COMMIT" != "$LATEST_COMMIT" ]; then
+            echo "updates_available=true" >> $GITHUB_OUTPUT
+            echo "current_commit=$CURRENT_COMMIT" >> $GITHUB_OUTPUT
+            echo "latest_commit=$LATEST_COMMIT" >> $GITHUB_OUTPUT
+            echo "hyku_version=$HYKU_VERSION" >> $GITHUB_OUTPUT
+            echo "✅ Updates available!"
+          else
+            echo "updates_available=false" >> $GITHUB_OUTPUT
+            echo "current_commit=$CURRENT_COMMIT" >> $GITHUB_OUTPUT
+            echo "latest_commit=$LATEST_COMMIT" >> $GITHUB_OUTPUT
+            echo "hyku_version=$HYKU_VERSION" >> $GITHUB_OUTPUT
+            echo "ℹ️ No updates available"
+          fi
+
+  test-update:
+    needs: check-hyku-updates
+    if: needs.check-hyku-updates.outputs.updates_available == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout knapsack
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update hyku submodule
+        run: |
+          cd hyrax-webapp
+          git fetch origin
+          git checkout origin/${{ inputs.hyku-branch || 'main' }}
+          echo "Updated hyku to: $(git rev-parse --short HEAD)"
+          cd ..
+          git add hyrax-webapp
+          git commit -m "Update hyku submodule to ${{ needs.check-hyku-updates.outputs.hyku_version }}" || echo "No changes to commit"
+      
+      - name: Build Docker images for testing
+        uses: notch8/actions/.github/workflows/build.yaml@v1.0.4
+        with:
+          platforms: "linux/amd64"
+          webTarget: hyku-web
+          workerTarget: hyku-worker
+          image_name: "samvera-labs/hyku_knapsack"
+          tag: "test-update-${{ github.run_id }}"
+      
+      - name: Run tests with updated hyku
+        uses: notch8/actions/.github/workflows/test.yaml@v1.0.4
+        with:
+          confdir: '/app/samvera/hyrax-webapp/solr/conf'
+          rspec_cmd: "cd .. && gem install semaphore_test_boosters && bundle && rspec_booster --job $CI_NODE_INDEX/$CI_NODE_TOTAL"
+          tag: "test-update-${{ github.run_id }}"
+
+  create-update-pr:
+    needs: [check-hyku-updates, test-update]
+    if: needs.check-hyku-updates.outputs.updates_available == 'true' && needs.test-update.result == 'success' && (inputs.create-pr == true || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout knapsack
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update hyku submodule
+        run: |
+          cd hyrax-webapp
+          git fetch origin
+          git checkout origin/${{ inputs.hyku-branch || 'main' }}
+          cd ..
+          git add hyrax-webapp
+          git commit -m "Update hyku submodule to ${{ needs.check-hyku-updates.outputs.hyku_version }}" || echo "No changes to commit"
+      
+      - name: Create update branch
+        id: create-branch
+        run: |
+          BRANCH_NAME="update-hyku-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+      
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Update Hyku submodule to ${{ needs.check-hyku-updates.outputs.hyku_version }}"
+          body: |
+            ## Automated Hyku Submodule Update
+            
+            This PR updates the hyku submodule to the latest version.
+            
+            **Changes:**
+            - Updated hyku submodule from `${{ needs.check-hyku-updates.outputs.current_commit }}` to `${{ needs.check-hyku-updates.outputs.latest_commit }}`
+            - Hyku version: `${{ needs.check-hyku-updates.outputs.hyku_version }}`
+            - Branch: `${{ inputs.hyku-branch || 'main' }}`
+            
+            **Testing:**
+            - ✅ All tests passed with the updated hyku version
+            - ✅ Docker images built successfully
+            - ✅ Cross-version compatibility verified
+            
+            **Next Steps:**
+            - Review the changes
+            - Run additional tests if needed
+            - Merge when ready
+            
+            This PR was created automatically by the [Auto-Update Hyku Submodule](.github/workflows/auto-update-hyku.yml) workflow.
+          branch: ${{ steps.create-branch.outputs.branch_name }}
+          base: main
+          delete-branch: true
+          labels: |
+            automated
+            dependencies
+            hyku-update

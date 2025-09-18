@@ -16,6 +16,10 @@
     - [Gems](#gems)
   - [Converting a Fork of Hyku Prime to a Knapsack](#converting-a-fork-of-hyku-prime-to-a-knapsack)
   - [Using the Knapsacker Tool](#using-the-knapsacker-tool)
+  - [Cross-Repo Dependency Management](#cross-repo-dependency-management)
+    - [Automated Testing](#automated-testing)
+    - [Local Management Scripts](#local-management-scripts)
+    - [GitHub Actions Workflows](#github-actions-workflows)
   - [Installation](#installation)
   - [Contributing](#contributing)
   - [License](#license)
@@ -383,6 +387,122 @@ They are prefixed with a `Δ'
 - **Focus on meaningful changes**: Not all `Δ` files need to be moved - some differences might be configuration or environment-specific
 - **Use decorators when possible**: Instead of wholesale file replacement, consider using Rails decorators for modifications. See [best practices](https://github.com/samvera-labs/hyku_knapsack/wiki/Decorators-and-Overrides)
 - **Test thoroughly**: After migration, ensure your Knapsack works correctly with your changes
+
+## Cross-Repo Dependency Management
+
+Hyku Knapsack depends on specific versions of the Hyku repository (via git submodule). This section covers the tools and processes for managing this dependency relationship, ensuring compatibility, and automating updates.
+
+### Automated Testing
+
+The project includes comprehensive testing against multiple Hyku versions to ensure compatibility:
+
+- **Multi-Version Testing**: Tests against `main`, `v1.0.0.beta2`, and `v1.0.0.beta1` branches
+- **Cross-Repo Notifications**: Automatically notifies the Hyku repository when knapsack changes
+- **Compatibility Reports**: Generates detailed reports showing which Hyku versions are compatible
+
+### Local Management Scripts
+
+#### `bin/check-hyku-versions.sh`
+
+Quick utility to check current hyku status and available updates:
+
+```bash
+# Show all information
+./bin/check-hyku-versions.sh
+
+# Check for updates only
+./bin/check-hyku-versions.sh --updates
+
+# Show recent commits
+./bin/check-hyku-versions.sh --commits
+
+# Show available versions
+./bin/check-hyku-versions.sh --versions
+```
+
+#### `bin/update-hyku.sh`
+
+Comprehensive script for managing hyku submodule updates and testing:
+
+```bash
+# Update to main branch and test
+./bin/update-hyku.sh main
+
+# Test against specific version without updating
+./bin/update-hyku.sh --test-only v1.0.0.beta2
+
+# Test against all configured branches
+./bin/update-hyku.sh --all-branches
+
+# Update without running tests
+./bin/update-hyku.sh --update-only main
+
+# Force update even if tests fail
+./bin/update-hyku.sh --force main
+```
+
+### GitHub Actions Workflows
+
+#### Test with Multiple Hyku Versions
+
+**File**: `.github/workflows/test-hyku-versions.yml`
+
+- Triggers on pushes and pull requests to main branches
+- Tests against multiple hyku versions in parallel
+- Generates compatibility reports
+- Notifies hyku repository of changes
+
+#### Auto-Update Hyku Submodule
+
+**File**: `.github/workflows/auto-update-hyku.yml`
+
+- Runs weekly to check for hyku updates
+- Tests updates before creating PRs
+- Creates automated pull requests for compatible updates
+- Can be triggered manually via workflow_dispatch
+
+#### Hyku Repository Notification
+
+**File**: `.github/workflows/hyku-notification.yml`
+
+- Responds to notifications from hyku repository
+- Tests knapsack compatibility with hyku changes
+- Reports test results back to hyku repository
+
+### Workflow Integration
+
+The workflows integrate with your existing CI/CD setup:
+
+- **Build Integration**: Uses the same `notch8/actions` workflows for consistency
+- **Docker Support**: Leverages your existing Docker Compose setup
+- **Parallel Testing**: Runs tests in parallel for faster feedback
+- **Status Reporting**: Provides detailed status reports and compatibility matrices
+
+### Configuration
+
+#### Required Secrets
+
+Set these secrets in your GitHub repository settings:
+
+- `GITHUB_TOKEN`: Automatically provided by GitHub
+- `HYKU_REPO_TOKEN`: Personal access token for cross-repo notifications (optional, falls back to GITHUB_TOKEN)
+
+#### Customization
+
+You can customize the testing by modifying:
+
+- **Tested Versions**: Update the `DEFAULT_BRANCHES` array in the scripts
+- **Test Commands**: Modify the `rspec_cmd` in workflow files
+- **Update Schedule**: Change the cron schedule in `auto-update-hyku.yml`
+- **Notification Events**: Customize the repository dispatch events
+
+### Best Practices
+
+1. **Regular Updates**: Use the automated weekly updates to stay current with hyku
+2. **Test Before Merging**: Always test hyku updates before merging to main
+3. **Monitor Compatibility**: Watch for compatibility reports in pull requests
+4. **Local Testing**: Use the management scripts for local development and testing
+5. **Version Pinning**: Consider pinning to specific hyku versions for production stability
 
 ## Installation
 

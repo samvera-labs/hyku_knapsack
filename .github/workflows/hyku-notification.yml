@@ -1,0 +1,58 @@
+name: "Hyku Repository Notification"
+run-name: Notify Hyku of knapsack changes by @${{ github.actor }}
+
+on:
+  repository_dispatch:
+    types: [hyku-updated]
+
+jobs:
+  test-knapsack-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout knapsack
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update hyku submodule to current hyku commit
+        run: |
+          cd hyrax-webapp
+          git fetch origin
+          git checkout ${{ github.event.client_payload.sha }}
+          echo "Updated hyku to commit: ${{ github.event.client_payload.sha }}"
+          cd ..
+          git add hyrax-webapp
+          git commit -m "Test with hyku commit ${{ github.event.client_payload.sha }}" || echo "No changes to commit"
+      
+      - name: Build Docker images
+        uses: notch8/actions/.github/workflows/build.yaml@v1.0.4
+        with:
+          platforms: "linux/amd64"
+          webTarget: hyku-web
+          workerTarget: hyku-worker
+          image_name: "samvera-labs/hyku_knapsack"
+          tag: "test-hyku-${{ github.event.client_payload.sha }}"
+      
+      - name: Run tests with current hyku
+        uses: notch8/actions/.github/workflows/test.yaml@v1.0.4
+        with:
+          confdir: '/app/samvera/hyrax-webapp/solr/conf'
+          rspec_cmd: "cd .. && gem install semaphore_test_boosters && bundle && rspec_booster --job $CI_NODE_INDEX/$CI_NODE_TOTAL"
+          tag: "test-hyku-${{ github.event.client_payload.sha }}"
+      
+      - name: Notify hyku of test results
+        if: always()
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.HYKU_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          repository: samvera/hyku
+          event-type: knapsack-test-results
+          client-payload: |
+            {
+              "hyku_sha": "${{ github.event.client_payload.sha }}",
+              "knapsack_sha": "${{ github.sha }}",
+              "test_status": "${{ job.status }}",
+              "workflow_run": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "actor": "${{ github.actor }}"
+            }

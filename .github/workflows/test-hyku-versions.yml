@@ -1,0 +1,109 @@
+name: "Test with Multiple Hyku Versions"
+run-name: Test with Hyku ${{ matrix.hyku-version }} on ${{ github.ref_name }} by @${{ github.actor }}
+
+on:
+  push:
+    branches:
+      - main
+      - enables-knapsack-authorities
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      hyku-version:
+        description: 'Specific hyku version to test (leave empty for all)'
+        required: false
+        type: choice
+        default: ''
+        options:
+          - 'all'
+          - 'main'
+          - 'v1.0.0.beta2'
+          - 'v1.0.0.beta1'
+      debug_step:
+        required: false
+        description: 'Pause the selected step to debug using tmate'
+        type: choice
+        default: 'none'
+        options:
+          - 'none'
+          - build
+          - test
+
+jobs:
+  test-hyku-versions:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        hyku-version: ${{ fromJSON(inputs.hyku-version == 'all' && '["main", "v1.0.0.beta2", "v1.0.0.beta1"]' || format('["{0}"]', inputs.hyku-version)) }}
+    
+    steps:
+      - name: Checkout knapsack
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update hyku submodule to test version
+        run: |
+          cd hyrax-webapp
+          git fetch origin
+          git checkout ${{ matrix.hyku-version }}
+          echo "Updated hyku to version: ${{ matrix.hyku-version }}"
+          echo "Commit: $(git rev-parse --short HEAD)"
+          cd ..
+          git add hyrax-webapp
+          git commit -m "Test with hyku ${{ matrix.hyku-version }}" || echo "No changes to commit"
+      
+      - name: Build Docker images
+        uses: notch8/actions/.github/workflows/build.yaml@v1.0.4
+        with:
+          platforms: "linux/amd64"
+          webTarget: hyku-web
+          workerTarget: hyku-worker
+          image_name: "samvera-labs/hyku_knapsack"
+          tag: "test-${{ matrix.hyku-version }}-${{ github.sha }}"
+      
+      - name: Run tests with hyku ${{ matrix.hyku-version }}
+        uses: notch8/actions/.github/workflows/test.yaml@v1.0.4
+        with:
+          confdir: '/app/samvera/hyrax-webapp/solr/conf'
+          rspec_cmd: "cd .. && gem install semaphore_test_boosters && bundle && rspec_booster --job $CI_NODE_INDEX/$CI_NODE_TOTAL"
+          tag: "test-${{ matrix.hyku-version }}-${{ github.sha }}"
+      
+      - name: Generate compatibility report
+        if: always()
+        run: |
+          echo "## Hyku Compatibility Report" >> $GITHUB_STEP_SUMMARY
+          echo "- **Hyku Version**: ${{ matrix.hyku-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Hyku Commit**: $(cd hyrax-webapp && git rev-parse --short HEAD)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow Run**: [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ **Compatible** - All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Incompatible** - Tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  notify-hyku-on-change:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: test-hyku-versions
+    steps:
+      - name: Notify Hyku repository of knapsack changes
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.HYKU_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          repository: samvera/hyku
+          event-type: knapsack-updated
+          client-payload: |
+            {
+              "ref": "${{ github.ref }}",
+              "sha": "${{ github.sha }}",
+              "actor": "${{ github.actor }}",
+              "workflow": "${{ github.workflow }}",
+              "run_id": "${{ github.run_id }}"
+            }
