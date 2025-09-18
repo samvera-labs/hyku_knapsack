@@ -110,9 +110,11 @@ jobs:
           echo "Skipping extended test for standard run"
           exit 0
 
-      - uses: actions/checkout@v4
+      - name: Checkout full repository and submodules
+        uses: actions/checkout@v4
         with:
-          submodules: false
+          submodules: 'recursive'
+          fetch-depth: 0 # IMPORTANT: This fetches full history for submodules too
 
       - name: Set Hyku reference
         run: |
@@ -126,17 +128,10 @@ jobs:
 
       - name: Setup Hyku submodule with specific ref
         run: |
-          echo "Initializing and cloning submodule. This was the missing step."
-          git submodule update --init --recursive
-
           echo "Setting up submodule at ref: $HYKU_REF"
           cd hyrax-webapp
           
-          echo "Fetching from remote..."
-          # Fetch all tags and branches. Unshallow is needed for tags.
-          git fetch --all --tags --unshallow
-          
-          echo "Checking out ref..."
+          echo "Checking out ref: $HYKU_REF"
           git checkout $HYKU_REF
           
           cd ..
