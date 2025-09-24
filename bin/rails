@@ -1,6 +1,14 @@
 #!/usr/bin/env ruby
 
 # frozen_string_literal: true
-APP_PATH = File.expand_path('../config/application', __dir__)
-require_relative '../config/boot'
-require 'rails/commands'
+
+# This command will automatically be run when you run "rails" with Rails gems
+# installed from the root of your application.
+
+begin
+  load File.join(File.expand_path('../../', __FILE__), 'hyrax-webapp/bin/rails')
+rescue LoadError => load_error
+  warn "No Rails application found! \n" \
+       "    git submodule update --init\n\n" \
+       "#{load_error}"
+end
