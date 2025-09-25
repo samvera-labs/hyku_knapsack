@@ -44,8 +44,9 @@ module HykuKnapsack
       #  ]
       # end
 
-      # Ensure we are prepending the Hyrax::SimpleSchemaLoaderDecorator early
-      Hyrax::SimpleSchemaLoader.prepend(Hyrax::SimpleSchemaLoaderDecorator)
+      # Ensure we are prepending the Hyku::SimpleSchemaLoaderDecorator early
+      require 'hyku_knapsack/simple_schema_loader_decorator'
+      HykuKnapsack::SimpleSchemaLoader.prepend(Hyrax::SimpleSchemaLoaderDecorator)
     end
 
     config.to_prepare do
