@@ -22,4 +22,3 @@ end
 RSpec.configure do |config|
   config.include_context 'with knapsack view paths', type: :view
 end
-
