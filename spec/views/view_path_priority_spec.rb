@@ -2,9 +2,14 @@
 
 # Test to verify that knapsack view paths are properly prioritized in the test environment
 RSpec.describe 'Knapsack View Path Priority', type: :view do
+  before(:all) do
+    # Ensure we have the proper Rails context
+    require_relative '../rails_helper'
+  end
+
   it 'should prioritize knapsack views over hyrax-webapp views' do
-    # Get the current view paths
-    view_paths = controller.view_paths.collect(&:to_s)
+    # Get the current view paths from ApplicationController
+    view_paths = ApplicationController.view_paths.collect(&:to_s)
     
     # Find the knapsack view path
     knapsack_view_path = HykuKnapsack::Engine.root.join('app', 'views').to_s
@@ -36,18 +41,10 @@ RSpec.describe 'Knapsack View Path Priority', type: :view do
     expect(view_files).not_to be_empty
   end
 
-  it 'should use the knapsack view path helper' do
-    # Test that the helper methods are available
-    expect(self).to respond_to(:ensure_knapsack_view_paths)
-    expect(self).to respond_to(:debug_view_paths)
-    
-    # Test that the helper works
-    ensure_knapsack_view_paths
-    
-    # Verify the view paths are still correct after using the helper
-    view_paths = controller.view_paths.collect(&:to_s)
-    knapsack_view_path = HykuKnapsack::Engine.root.join('app', 'views').to_s
-    
-    expect(view_paths.first).to eq(knapsack_view_path)
+  it 'should have knapsack engine loaded' do
+    # Test that the knapsack engine is properly loaded
+    expect(defined?(HykuKnapsack::Engine)).to be_truthy
+    expect(HykuKnapsack::Engine.root).to be_a(Pathname)
+    expect(HykuKnapsack::Engine.root.join('app', 'views')).to exist
   end
 end

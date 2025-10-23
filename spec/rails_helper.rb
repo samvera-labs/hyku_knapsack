@@ -42,24 +42,13 @@ RSpec.configure do |config|
   # TODO is this needed?
   config.include HykuKnapsack::Engine.routes.url_helpers
   config.include Capybara::DSL
-  config.include Fixtures::FixtureFileUpload
+  # config.include Fixtures::FixtureFileUpload  # Commented out - not available in this context
 
   # Fix knapsack view path configuration for test environment
   # This ensures that knapsack views are prioritized over hyrax-webapp views
   # when running view specs in the test environment
-  config.before(:suite) do
-    # Ensure knapsack view paths are properly configured
-    if defined?(ApplicationController)
-      ([ApplicationController] + ApplicationController.descendants).each do |klass|
-        paths = klass.view_paths.collect(&:to_s)
-        knapsack_view_path = HykuKnapsack::Engine.root.join('app', 'views').to_s
-        
-        # Only prepend if knapsack view path is not already first
-        unless paths.first == knapsack_view_path
-          paths = [knapsack_view_path] + paths
-          klass.view_paths = paths.uniq
-        end
-      end
-    end
+  config.before(:each, type: :view) do
+    # Simple approach: add knapsack view path to the view object
+    view.view_paths.unshift(HykuKnapsack::Engine.root.join('app', 'views'))
   end
 end
