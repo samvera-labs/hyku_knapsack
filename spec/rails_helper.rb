@@ -42,5 +42,6 @@ RSpec.configure do |config|
   # TODO is this needed?
   config.include HykuKnapsack::Engine.routes.url_helpers
   config.include Capybara::DSL
-  config.include Fixtures::FixtureFileUpload
+  # Only include Fixtures::FixtureFileUpload if it's defined (from hyrax-webapp)
+  config.include Fixtures::FixtureFileUpload if defined?(Fixtures::FixtureFileUpload)
 end

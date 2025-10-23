@@ -25,4 +25,6 @@ Gem::Specification.new do |spec|
   end
 
   spec.add_dependency "rails", ">= 5.2.0"
+
+  spec.add_development_dependency "rubocop-rake"
 end
