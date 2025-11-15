@@ -172,7 +172,7 @@ This will checkout the submodule to the HEAD of the specified branch.
 
 ### 🚀 Getting Started with Stack Car
 
-Hyku Knapsack uses [Stack Car](https://github.com/samvera-labs/stack_car) to manage Docker-based development.
+Hyku Knapsack uses [Stack Car](https://github.com/notch8/stack_car) to manage Docker-based development.
 For alternative setup options, refer to [Hyku's Getting Started](https://github.com/samvera/hyku/blob/main/docs/getting-started.md).
 
 > **Important:** All commands below should be run from the **root of your Knapsack project**, **not** from within the `hyrax-webapp` submodule.
