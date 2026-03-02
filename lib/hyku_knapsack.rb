@@ -7,7 +7,7 @@ require "hyku_knapsack/version"
 require "hyku_knapsack/engine"
 
 # Disable include_metadata only when flexible mode is explicitly enabled.
-ENV['HYRAX_DISABLE_INCLUDE_METADATA'] = 'true' if ENV.fetch('HYRAX_FLEXIBLE', 'false') == 'true'
+ENV['HYRAX_DISABLE_INCLUDE_METADATA'] = 'true' if ENV['HYRAX_FLEXIBLE'] == 'true'
 
 module HykuKnapsack
   # Your code goes here...
