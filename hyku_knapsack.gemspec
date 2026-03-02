@@ -24,7 +24,7 @@ Gem::Specification.new do |spec|
     Dir["{app,config,db,lib}/**/*", "LICENSE", "Rakefile", "README.md"]
   end
 
-  spec.add_dependency "rails", ">= 5.2.0"
+  spec.add_dependency "rails", ">= 7.2.0"
 
   spec.add_development_dependency "rubocop-rake"
 end
