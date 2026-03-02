@@ -6,6 +6,7 @@
   - [Introduction](#introduction)
     - [Version strategy](#version-strategy)
     - [Precedence](#precedence)
+  - [Version compatibility](#version-compatibility)
   - [Usage](#usage)
     - [Creating Your Knapsack](#creating-your-knapsack)
       - [New Repository](#new-repository)
@@ -43,6 +44,33 @@ In a traditional setup, a Rails' application's views, translations, and code sup
 The goal being that a Hyku Knapsack should make it easier to maintain, upgrade, and contribute fixes back to Hyku.
 
 See [Overrides](#overrides) for more discussion on working with a Hyku Knapsack.
+
+### Version compatibility
+
+Knapsack prime tracks Hyku via a Git submodule. **Which Knapsack version you use must match the Hyku version** you point the submodule at.
+
+| Knapsack version | Branch / tag | Hyku version | Rails |
+|------------------|--------------|--------------|-------|
+| **v1.0.0+** (current) | `main` | Hyku 7.x (e.g. v7.0.0.rc1+) | 7.2+ |
+| **v0.0.1** (legacy) | `hyku-6-support` or tag `v0.0.1-hyku6-compat` | Hyku 6.x | 6.1 |
+
+- **New knapsacks or upgrades to Hyku 7:** Use `main` and pin the `hyrax-webapp` submodule to a Hyku 7 tag or branch (e.g. `v7.0.0.rc1`).
+- **Existing knapsacks still on Hyku 6:** Use the branch `hyku-6-support` or the tag `v0.0.1-hyku6-compat` so you stay on the pre–Hyku 7 code and submodule expectations.
+
+The gemspec requires `rails >= 7.2.0` for v1.0.0+, so Bundler will not install that version on older Rails/Hyku stacks.
+
+**Reference from Hyku’s Gemfile:** The Hyku application (the `hyrax-webapp` submodule) declares the `hyku_knapsack` gem in its Gemfile (e.g. `branch: 'required_for_knapsack_instances'`). Knapsack prime keeps that branch in sync with `main` for Hyku 7. **No PR to Hyku is required.**
+
+**Downstream knapsacks on Hyku 6:** If your knapsack still pins the submodule to Hyku 6.x, override the gem in your **knapsack** so Bundler resolves the compat version. For example in your knapsack’s `bundler.d/` (or equivalent):
+
+```ruby
+# Use Hyku-6–compatible knapsack when your submodule is Hyku 6.x
+gem 'hyku_knapsack', github: 'samvera-labs/hyku_knapsack', ref: 'v0.0.1-hyku6-compat'
+# or
+gem 'hyku_knapsack', github: 'samvera-labs/hyku_knapsack', branch: 'hyku-6-support'
+```
+
+That way Hyku’s Gemfile stays unchanged; your knapsack’s bundle context overrides the gem. Downstream knapsacks on Hyku 7 can simply pull from prime `main` (or the branch Hyku points at) and do not need this override.
 
 ## Usage
 
