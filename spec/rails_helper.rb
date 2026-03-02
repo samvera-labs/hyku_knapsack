@@ -3,7 +3,8 @@
 # Set environment variables BEFORE requiring Rails environment
 # so initializers read the correct values on first load.
 ENV["RAILS_ENV"] ||= "test"
-ENV['HYRAX_FLEXIBLE'] = 'true'
+# Use Hyku default (false) unless a spec or .env sets HYRAX_FLEXIBLE.
+ENV['HYRAX_FLEXIBLE'] ||= 'false'
 
 require "spec_helper"
 

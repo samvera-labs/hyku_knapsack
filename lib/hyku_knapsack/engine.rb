@@ -40,7 +40,7 @@ module HykuKnapsack
     config.before_initialize do
       # When running in flexible metadata mode, disable include_metadata for all resource
       # types so that schemas are driven entirely by the M3 profile rather than core_metadata.
-      if ActiveModel::Type::Boolean.new.cast(ENV.fetch('HYRAX_FLEXIBLE', 'true'))
+      if ActiveModel::Type::Boolean.new.cast(ENV.fetch('HYRAX_FLEXIBLE', 'false'))
         if defined?(Hyrax) && Hyrax.respond_to?(:config)
           Hyrax.config.work_include_metadata = false
           Hyrax.config.collection_include_metadata = false

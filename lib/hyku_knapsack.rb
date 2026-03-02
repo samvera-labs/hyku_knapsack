@@ -1,16 +1,13 @@
 # frozen_string_literal: true
 
-# Force HYRAX_FLEXIBLE to true for this app (it always runs with flexible metadata).
-# This must be set before the engine is required and before any Hyrax code loads
-# to prevent early gem initialization from setting it to false.
-ENV['HYRAX_FLEXIBLE'] ||= 'true'
+# Respect Hyku's default: HYRAX_FLEXIBLE is off unless set by the app (e.g. .env, docker-compose).
+# Do not set ENV['HYRAX_FLEXIBLE'] here so downstream apps control it.
 
 require "hyku_knapsack/version"
 require "hyku_knapsack/engine"
 
-# Disable include_metadata for flexible mode to prevent loading core_metadata schema.
-# Must be set very early, before models are loaded (which can happen during engine initialization).
-ENV['HYRAX_DISABLE_INCLUDE_METADATA'] = 'true' if ENV.fetch('HYRAX_FLEXIBLE', 'true') != 'false'
+# Disable include_metadata only when flexible mode is explicitly enabled.
+ENV['HYRAX_DISABLE_INCLUDE_METADATA'] = 'true' if ENV.fetch('HYRAX_FLEXIBLE', 'false') == 'true'
 
 module HykuKnapsack
   # Your code goes here...
