@@ -4,6 +4,7 @@
 
 - [HykuKnapsack](#hykuknapsack)
   - [Introduction](#introduction)
+    - [Version strategy](#version-strategy)
     - [Precedence](#precedence)
   - [Usage](#usage)
     - [Creating Your Knapsack](#creating-your-knapsack)
@@ -30,6 +31,10 @@ include making contributing back to the Hyku project easier and making upgrades 
 ## Introduction
 
 [Hyku](https://github.com/samvera/hyku) is a Rails application that leverages Rails Engines and other gems to provide functionality.  A Hyku Knapsack is also a Rails engine, but it integrates differently than other engines.
+
+### Version strategy
+
+Hyku Knapsack versions are aligned with [Hyku](https://github.com/samvera/hyku) versions: **Knapsack 6** works with the **Hyku 6** series, **Knapsack 7** with the **Hyku 7** series (which introduces breaking changes), and so on. That way you can tell at a glance which Knapsack release to use for a given Hyku version. Pick the Knapsack major version that matches your Hyku major version.
 
 ### Precedence
 
@@ -386,16 +391,14 @@ They are prefixed with a `Δ'
 
 ## Installation
 
-If not using a current version, add this line to Hyku's Gemfile:
+You don't need to edit Hyku or the submodule's Gemfile. Clone the Knapsack at the version that matches your target Hyku series (see [Version strategy](#version-strategy))—e.g. tag `v6.0.0` for a specific release or branch `main` to track the latest for that series. The Knapsack repo pins the `hyrax-webapp` submodule to a Hyku commit that works with that Knapsack version. After cloning, initialize and update the submodule:
 
-```ruby
-gem "hyku_knapsack", github: 'samvera-labs/hyku_knapsack', branch: 'main'
-```
-
-And then execute:
 ```bash
-$ bundle
+git submodule init
+git submodule update
 ```
+
+The submodule pointer is part of the Knapsack tree (and recorded in [.gitmodules](./.gitmodules)); which Hyku version you get is determined by the Knapsack version you checked out.
 
 ## Contributing
 
