@@ -63,7 +63,12 @@ RSpec.configure do |config|
     DatabaseCleaner.strategy = :transaction
     DatabaseCleaner.start
   end
-
+# Appeasing the Hyrax user factory interface.
+def RoleMapper.add(user:, groups:)
+  groups.each do |group|
+    user.add_role(group.to_sym, Site.instance)
+  end
+end
   config.after do
     DatabaseCleaner.clean
   end
