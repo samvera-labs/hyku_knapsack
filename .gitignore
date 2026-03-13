@@ -12,3 +12,6 @@ scratch.md
 file_cache/
 .bash_history
 /.cache
+pry_history
+CLAUDE.md
+settings.local.json

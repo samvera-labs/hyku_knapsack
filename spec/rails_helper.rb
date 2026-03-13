@@ -41,8 +41,9 @@ FactoryBot.definition_file_paths = [
 ]
 FactoryBot.find_definitions
 
-# Load only knapsack-specific support files (not all of hyrax-webapp's).
+# Load knapsack-specific support files, then any support files the host app has added.
 Dir[HykuKnapsack::Engine.root.join('spec', 'support', '**', '*.rb')].each { |f| require f }
+Dir[Rails.root.join('spec', 'support', '**', '*.rb')].each { |f| require f }
 
 ActiveRecord::Migration.maintain_test_schema!
 
