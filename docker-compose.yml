@@ -3,11 +3,11 @@ x-app: &app
     context: .
     target: hyku-web
     cache_from:
-      - ghcr.io/samvera-labs/hyku_knapsack:latest
+      - ghcr.io/samvera-labs/hyku_knapsack/web:latest
     args:
       BUILDKIT_INLINE_CACHE: 1
       APP_PATH: ./hyrax-webapp
-  image: ghcr.io/samvera-labs/hyku_knapsack:${TAG:-latest}
+  image: ghcr.io/samvera-labs/hyku_knapsack/web:${TAG:-latest}
   env_file:
     - .env
     - .env.development
