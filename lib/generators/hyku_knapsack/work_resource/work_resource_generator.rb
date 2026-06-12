@@ -125,10 +125,19 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
   def insert_hyku_extra_includes_into_model
     model = File.join('../app/models/', class_path, "#{file_name}.rb")
     af_model = class_name.to_s.gsub('Resource', '')&.safe_constantize if class_name.end_with?('Resource')
-    insert_into_file model, before: "end" do
+    # Anchor on the class's closing `end` (column 0). A bare "end" anchor
+    # matches every `end` in the file, so the block was also being inserted
+    # inside the `if Hyrax.config.work_include_metadata?` guard emitted by the
+    # Hyrax work template, duplicating every include. The optional-feature
+    # schemas stay behind the same guard the stock Hyku models use so they do
+    # not load statically when flexible metadata is enabled.
+    insert_into_file model, before: /^end\s*\Z/ do
       <<-RUBY.gsub(/^ {8}/, '  ')
-        include Hyrax::Schema(:with_pdf_viewer)
-        include Hyrax::Schema(:with_video_embed)
+        if Hyrax.config.work_include_metadata?
+          include Hyrax::Schema(:with_pdf_viewer)
+          include Hyrax::Schema(:with_video_embed)
+        end
+
         include Hyrax::ArResource
         include Hyrax::NestedWorks
         #{"\n  Hyrax::ValkyrieLazyMigration.migrating(self, from: #{af_model})\n" if af_model}
