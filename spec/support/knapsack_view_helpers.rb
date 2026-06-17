@@ -14,7 +14,10 @@ RSpec.shared_context 'with knapsack view paths' do
     # Prepend the knapsack view paths so that views in the knapsack
     # take precedence over views in hyrax-webapp.
     # This mimics what happens in production via the Engine's after_initialize hook.
-    view.view_paths.unshift(HykuKnapsack::Engine.root.join('app', 'views'))
+    # (The previous `view.view_paths.unshift(...)` never worked: `view_paths` is an
+    # ActionView::PathSet — an Enumerable, not an Array — so it has no #unshift;
+    # the line apparently hadn't been exercised because no view spec hit it.)
+    controller.prepend_view_path(HykuKnapsack::Engine.root.join('app', 'views').to_s)
   end
 end
 
