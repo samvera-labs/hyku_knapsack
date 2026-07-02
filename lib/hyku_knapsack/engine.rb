@@ -76,6 +76,11 @@ module HykuKnapsack
       HykuKnapsack::Engine.root.glob("lib/**/*_decorator*.rb").sort.each do |c|
         Rails.configuration.cache_classes ? require(c) : load(c)
       end
+
+      # Reload pass only: to_prepare runs before concern registration. A knapsack
+      # that DEFERS registration must also call this at the end of its own
+      # registration block for the boot pass. See HykuKnapsack::ReseedValidChildConcerns.
+      HykuKnapsack::ReseedValidChildConcerns.call
     end
 
     config.after_initialize do
