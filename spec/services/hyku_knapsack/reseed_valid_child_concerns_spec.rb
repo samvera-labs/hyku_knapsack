@@ -33,14 +33,21 @@ RSpec.describe HykuKnapsack::ReseedValidChildConcerns do
     end
 
     it 'excludes a type that bars itself via valid_child_concern?' do
+      skip 'needs at least one work type registered' if work_types.empty?
+
       barred = work_types.first
-      allow(barred).to receive(:valid_child_concern?).and_return(false)
+      # Genuinely define the opt-out method (not a stub): the service checks
+      # `respond_to?(:valid_child_concern?)`, which a verifying double can't fake
+      # on a class that doesn't already implement it.
+      barred.define_singleton_method(:valid_child_concern?) { false }
 
       described_class.call
 
       work_types.each do |klass|
         expect(klass.valid_child_concerns).not_to include(barred)
       end
+    ensure
+      barred.singleton_class.send(:remove_method, :valid_child_concern?)
     end
 
     it 'keeps types that do not define valid_child_concern? as valid children' do
