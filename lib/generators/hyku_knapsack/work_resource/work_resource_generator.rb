@@ -125,10 +125,14 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
   def insert_hyku_extra_includes_into_model
     model = File.join('../app/models/', class_path, "#{file_name}.rb")
     af_model = class_name.to_s.gsub('Resource', '')&.safe_constantize if class_name.end_with?('Resource')
-    insert_into_file model, before: "end" do
+    # Matches only the class's closing `end` at column 0, so the block is inserted once.
+    insert_into_file model, before: /^end\s*\Z/ do
       <<-RUBY.gsub(/^ {8}/, '  ')
-        include Hyrax::Schema(:with_pdf_viewer)
-        include Hyrax::Schema(:with_video_embed)
+        if Hyrax.config.work_include_metadata?
+          include Hyrax::Schema(:with_pdf_viewer)
+          include Hyrax::Schema(:with_video_embed)
+        end
+
         include Hyrax::ArResource
         include Hyrax::NestedWorks
         #{"\n  Hyrax::ValkyrieLazyMigration.migrating(self, from: #{af_model})\n" if af_model}
