@@ -200,7 +200,6 @@ sc proxy up
 #### 3. Prepare and start the stack
 
 ```bash
-sc pull     # Pull the latest base images
 sc build    # Build your local image
 sc up       # Start the container stack
 ```
@@ -210,7 +209,7 @@ sc up       # Start the container stack
 Once running, visit:
 
 ```
-https://admin-{repo-name}.localhost.direct/
+https://admin-{$APP_NAME}.localhost.direct/
 ```
 
 Example (for the Hyku Knapsack repo):
