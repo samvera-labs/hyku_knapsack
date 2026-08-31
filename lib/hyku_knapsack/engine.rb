@@ -4,6 +4,12 @@ module HykuKnapsack
   class Engine < ::Rails::Engine
     isolate_namespace HykuKnapsack
 
+    # Rails serves the host app's public/ only; without this anything the
+    # knapsack ships there, such as a generated IIIF viewer, 404s.
+    initializer 'hyku_knapsack.static_assets' do |app|
+      app.middleware.use ::ActionDispatch::Static, HykuKnapsack::Engine.root.join('public').to_s
+    end
+
     # Load knapsack initializers from config/initializers/ AFTER the host app's
     # initializers run (e.g. after hyku's 1flexible.rb), so knapsack overrides win.
     initializer 'hyku_knapsack.load_initializers', after: :load_config_initializers do
