@@ -21,6 +21,9 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
 
   argument :attributes, type: :array, default: [], banner: 'field:type field:type'
 
+  class_option :flexible, type: :boolean, default: false,
+                          desc: 'Generate for flexible metadata; skips the static schema YAML'
+
   def self.exit_on_failure?
     true
   end
@@ -47,6 +50,8 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
   end
 
   def create_metadata_config
+    return if flexible?
+
     template('metadata.yaml', File.join('../config/metadata/', "#{file_name}.yaml"))
     return if attributes.blank?
     gsub_file File.join('config/metadata/', "#{file_name}.yaml"),
@@ -179,6 +184,10 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
   end
 
   private
+
+  def flexible?
+    options[:flexible]
+  end
 
   def rspec_installed?
     defined?(RSpec) && defined?(RSpec::Rails)
