@@ -10,6 +10,12 @@ module HykuKnapsack
       app.middleware.use ::ActionDispatch::Static, HykuKnapsack::Engine.root.join('public').to_s
     end
 
+    # Flipflop loads the host app's config/features.rb only; register the
+    # knapsack's so it can ship feature flags of its own.
+    initializer 'hyku_knapsack.flipflop_features' do
+      Flipflop::FeatureLoader.current.append(HykuKnapsack::Engine.instance)
+    end
+
     # Load knapsack initializers from config/initializers/ AFTER the host app's
     # initializers run (e.g. after hyku's 1flexible.rb), so knapsack overrides win.
     initializer 'hyku_knapsack.load_initializers', after: :load_config_initializers do
