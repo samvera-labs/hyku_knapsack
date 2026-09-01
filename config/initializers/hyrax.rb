@@ -2,6 +2,8 @@
 
 # Use this to override any Hyrax configuration from the Knapsack
 
+# Needs to stay in #after_initialize
+# @see https://github.com/notch8/palni_palci_knapsack/commit/e17e7e56
 Rails.application.config.after_initialize do
   Hyrax.config do |config|
     config.flexible = ActiveModel::Type::Boolean.new.cast(ENV.fetch('HYRAX_FLEXIBLE', 'false'))
