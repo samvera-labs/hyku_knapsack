@@ -4,6 +4,18 @@ module HykuKnapsack
   class Engine < ::Rails::Engine
     isolate_namespace HykuKnapsack
 
+    # Rails serves the host app's public/ only; without this anything the
+    # knapsack ships there, such as a generated IIIF viewer, 404s.
+    initializer 'hyku_knapsack.static_assets' do |app|
+      app.middleware.use ::ActionDispatch::Static, HykuKnapsack::Engine.root.join('public').to_s
+    end
+
+    # Flipflop loads the host app's config/features.rb only; register the
+    # knapsack's so it can ship feature flags of its own.
+    initializer 'hyku_knapsack.flipflop_features' do
+      Flipflop::FeatureLoader.current.append(HykuKnapsack::Engine.instance)
+    end
+
     # Load knapsack initializers from config/initializers/ AFTER the host app's
     # initializers run (e.g. after hyku's 1flexible.rb), so knapsack overrides win.
     initializer 'hyku_knapsack.load_initializers', after: :load_config_initializers do
@@ -84,9 +96,12 @@ module HykuKnapsack
     end
 
     config.after_initialize do
-      Hyrax::DerivativeService.services = [
-        IiifPrint::PluggableDerivativeService
-      ]
+      derivative_services = [IiifPrint::PluggableDerivativeService]
+      if Hyrax.config.respond_to?(:derivative_services=)
+        Hyrax.config.derivative_services = derivative_services
+      else
+        Hyrax::DerivativeService.services = derivative_services
+      end
 
       # This is the opposite of what you usually want to do.  Normally app views override engine
       # views but in our case things in the Knapsack override what is in the application.

@@ -27,6 +27,10 @@ module HykuKnapsack
   # itself) by defining `self.valid_child_concern?` to return false. Such types
   # are excluded from every model's child list. Types that do not define the
   # method remain valid children by default.
+  #
+  # The mirror image is `self.valid_parent_concern?`: a type returning false
+  # accepts no children at all, so its own list is emptied. Types that do not
+  # define it remain valid parents by default.
   module ReseedValidChildConcerns
     module_function
 
@@ -34,12 +38,24 @@ module HykuKnapsack
       concerns = Hyrax.config.curation_concerns
       child_concerns = concerns.reject { |klass| barred_as_child?(klass) }
       concerns.each do |klass|
-        klass.valid_child_concerns = child_concerns if klass.respond_to?(:valid_child_concerns=)
+        next unless klass.respond_to?(:valid_child_concerns=)
+
+        klass.valid_child_concerns = barred_as_parent?(klass) ? [] : child_concerns
       end
     end
 
     def barred_as_child?(klass)
       klass.respond_to?(:valid_child_concern?) && !klass.valid_child_concern?
+    end
+
+    # A type that declares itself not a valid parent accepts no children: its list
+    # is emptied, so Hyrax::ChildTypes.for returns nothing and the show page's
+    # "Attach child" control does not render. This gates the UI entry point only.
+    # member_ids, importers, and already-nested data are untouched, so a type whose
+    # valid_parent_concern? goes back to true regains the control with its existing
+    # nesting intact.
+    def barred_as_parent?(klass)
+      klass.respond_to?(:valid_parent_concern?) && !klass.valid_parent_concern?
     end
   end
 end

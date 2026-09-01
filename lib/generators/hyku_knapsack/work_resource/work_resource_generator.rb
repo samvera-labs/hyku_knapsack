@@ -16,10 +16,17 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
   # new models or scaffolds.
   include Rails::Generators::ModelHelpers
 
-  TEMPLATE_PATH = Hyrax::Engine.root.join('lib', 'generators', 'hyrax', 'work_resource', 'templates')
-  source_root File.expand_path(TEMPLATE_PATH, __FILE__)
+  HYRAX_TEMPLATES = Hyrax::Engine.root.join('lib', 'generators', 'hyrax', 'work_resource', 'templates')
+
+  # The knapsack's own templates win; Hyrax still supplies the controller,
+  # metadata and spec templates.
+  source_paths.push(File.expand_path('templates', __dir__))
+  source_paths.push(HYRAX_TEMPLATES)
 
   argument :attributes, type: :array, default: [], banner: 'field:type field:type'
+
+  class_option :flexible, type: :boolean, default: false,
+                          desc: 'Generate for flexible metadata; skips the static schema YAML'
 
   def self.exit_on_failure?
     true
@@ -47,6 +54,8 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
   end
 
   def create_metadata_config
+    return if flexible?
+
     template('metadata.yaml', File.join('../config/metadata/', "#{file_name}.yaml"))
     return if attributes.blank?
     gsub_file File.join('config/metadata/', "#{file_name}.yaml"),
@@ -121,57 +130,6 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
     end
   end
 
-  # rubocop:disable Metrics/MethodLength
-  def insert_hyku_extra_includes_into_model
-    model = File.join('../app/models/', class_path, "#{file_name}.rb")
-    af_model = class_name.to_s.gsub('Resource', '')&.safe_constantize if class_name.end_with?('Resource')
-    # Matches only the class's closing `end` at column 0, so the block is inserted once.
-    insert_into_file model, before: /^end\s*\Z/ do
-      <<-RUBY.gsub(/^ {8}/, '  ')
-        if Hyrax.config.work_include_metadata?
-          include Hyrax::Schema(:with_pdf_viewer)
-          include Hyrax::Schema(:with_video_embed)
-        end
-
-        include Hyrax::ArResource
-        include Hyrax::NestedWorks
-        #{"\n  Hyrax::ValkyrieLazyMigration.migrating(self, from: #{af_model})\n" if af_model}
-        include IiifPrint.model_configuration(
-          pdf_split_child_model: GenericWorkResource,
-          pdf_splitter_service: IiifPrint::TenantConfig::PdfSplitter
-        )
-
-        prepend OrderAlready.for(:creator)
-      RUBY
-    end
-  end
-
-  def insert_hyku_extra_includes_into_form
-    form = File.join('../app/forms/', class_path, "#{file_name}_form.rb")
-    insert_into_file form, after: "include Hyrax::FormFields(:#{file_name})\n" do
-      "  include Hyrax::FormFields(:with_pdf_viewer)\n" \
-      "  include Hyrax::FormFields(:with_video_embed)\n" \
-      "  include VideoEmbedBehavior::Validation\n"
-    end
-  end
-
-  def insert_hyku_extra_inclues_into_indexer
-    indexer = File.join('../app/indexers/', class_path, "#{file_name}_indexer.rb")
-    insert_into_file indexer, after: "include Hyrax::Indexer(:#{file_name})\n" do
-      "  include HykuIndexing\n"
-    end
-  end
-
-  def change_inheritance_of_form
-    form = File.join('../app/forms/', class_path, "#{file_name}_form.rb")
-    gsub_file form, 'Hyrax::Forms::PcdmObjectForm', 'Hyrax::Forms::ResourceForm'
-  end
-
-  def change_inheritance_of_indexer
-    indexer = File.join('../app/indexers/', class_path, "#{file_name}_indexer.rb")
-    gsub_file indexer, "Hyrax::Indexers::PcdmObjectIndexer(#{class_name})", 'Hyrax::ValkyrieWorkIndexer'
-  end
-
   def modifiy_indexer_spec
     indexer_spec = File.join('../spec/indexers/', class_path, "#{file_name}_indexer_spec.rb")
     # remove the let(:resource) { WorkType.new } line
@@ -179,6 +137,17 @@ class HykuKnapsack::WorkResourceGenerator < Rails::Generators::NamedBase
   end
 
   private
+
+  def flexible?
+    options[:flexible]
+  end
+
+  # The ActiveFedora class a `<Name>Resource` is migrating from, if there is one.
+  def af_model
+    return unless class_name.end_with?('Resource')
+
+    class_name.to_s.gsub('Resource', '').safe_constantize
+  end
 
   def rspec_installed?
     defined?(RSpec) && defined?(RSpec::Rails)

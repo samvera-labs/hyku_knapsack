@@ -50,6 +50,32 @@ RSpec.describe HykuKnapsack::ReseedValidChildConcerns do
       barred.singleton_class.send(:remove_method, :valid_child_concern?)
     end
 
+    it 'empties the child list of a type that bars itself via valid_parent_concern?' do
+      skip 'needs at least one work type registered' if work_types.empty?
+
+      barred = work_types.first
+      barred.define_singleton_method(:valid_parent_concern?) { false }
+
+      described_class.call
+
+      expect(barred.valid_child_concerns).to be_empty
+    ensure
+      barred.singleton_class.send(:remove_method, :valid_parent_concern?)
+    end
+
+    it 'leaves other types accepting children when one bars itself as a parent' do
+      skip 'needs at least two work types registered' if work_types.size < 2
+
+      barred = work_types.first
+      barred.define_singleton_method(:valid_parent_concern?) { false }
+
+      described_class.call
+
+      expect(work_types.last.valid_child_concerns.map(&:to_s)).to match_array(expected)
+    ensure
+      barred.singleton_class.send(:remove_method, :valid_parent_concern?)
+    end
+
     it 'keeps types that do not define valid_child_concern? as valid children' do
       described_class.call
 
