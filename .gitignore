@@ -12,3 +12,5 @@ scratch.md
 file_cache/
 .bash_history
 /.cache
+
+Gemfile.lock
