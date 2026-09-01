@@ -1,0 +1,51 @@
+# Wings off: Hyrax runs on Postgres alone, and no Fedora container starts.
+#   docker compose -f docker-compose.yml -f docker-compose.override-nofcrepo4.yml up
+# Naming a file suppresses the implicit docker-compose.override.yml, so add yours back
+# to the list if you keep one.
+# The env block mirrors hyrax-webapp/docker-compose.override-nofcrepo4.yml and adds
+# initialize_app, which is the service that runs bin/db-migrate-seed.sh. The depends_on
+# blocks are re-declared because extends merges Hyku's list, fcrepo included, and the
+# profile keeps a bare `up` from starting fcrepo now that nothing depends on it.
+x-no-wings-env: &no-wings-env
+  DISABLE_WINGS: "true"
+  HYRAX_SKIP_WINGS: "true"
+  HYRAX_SKIP_FREYJA: "false"
+  HYRAX_SKIP_FRIGG: "true"
+  VALKYRIE_TRANSITION: "false"
+
+services:
+  fcrepo:
+    profiles: ["fedora"]
+
+  web:
+    environment: *no-wings-env
+    depends_on: !override
+      db: {condition: service_started}
+      adminer: {condition: service_started}
+      solr: {condition: service_started}
+      fits: {condition: service_started}
+      redis: {condition: service_started}
+      zoo: {condition: service_started}
+      chrome: {condition: service_started}
+      check_volumes: {condition: service_started}
+      worker: {condition: service_started}
+      initialize_app: {condition: service_completed_successfully}
+
+  worker:
+    environment: *no-wings-env
+    depends_on: !override
+      db: {condition: service_started}
+      adminer: {condition: service_started}
+      solr: {condition: service_started}
+      fits: {condition: service_started}
+      redis: {condition: service_started}
+      zoo: {condition: service_started}
+      check_volumes: {condition: service_completed_successfully}
+      initialize_app: {condition: service_completed_successfully}
+
+  initialize_app:
+    environment: *no-wings-env
+    depends_on: !override
+      db: {condition: service_started}
+      solr: {condition: service_healthy}
+      redis: {condition: service_started}
