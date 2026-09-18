@@ -28,7 +28,7 @@ end
 
 def bundled_migrations
   migration_list = Bundler.load.specs.inject([]) do |arr, spec|
-    if File.exist?("#{spec.full_gem_path}/lib/*/engine.rb")
+    if Dir.glob("#{spec.full_gem_path}/lib/*/engine.rb").any?
       migrations = Dir.glob("#{spec.full_gem_path}/db/migrate/*")
       migrations.each do |migration_path|
         arr.push(File.basename(migration_path).split('_').first)
