@@ -36,7 +36,7 @@ def bundled_migrations
     end
     arr
   end
-  Dir.glob('db/migrate/*.rb').each do |migration_path|
+  (Dir.glob('db/migrate/*.rb') + Dir.glob('../db/migrate/*.rb')).each do |migration_path|
     migration_list.push(File.basename(migration_path).split('_').first)
   end
   migration_list
