@@ -1,0 +1,29 @@
+name: Publish release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - lib/hyku_knapsack/version.rb
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release the new version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v$(ruby -r ./lib/hyku_knapsack/version -e 'print HykuKnapsack::VERSION')"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "$tag is already released." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes
