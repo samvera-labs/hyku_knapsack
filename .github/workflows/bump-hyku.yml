@@ -1,0 +1,82 @@
+name: Bump Hyku
+
+on:
+  schedule:
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Hyku release tag to bump to (default: the latest Hyku release)"
+        required: false
+        type: string
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bump-hyku
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Open the bump pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_TAG" ]; then
+            release=$(gh api "repos/samvera/hyku/releases/tags/$INPUT_TAG")
+          else
+            # releases/latest skips drafts and release candidates
+            release=$(gh api repos/samvera/hyku/releases/latest)
+          fi
+          tag=$(jq -r .tag_name <<< "$release")
+          if [ "$(jq -r .prerelease <<< "$release")" = "true" ]; then
+            echo "::error::$tag is a prerelease"
+            exit 1
+          fi
+
+          version=${tag#v}
+          knapsack_version=$(ruby -r ./lib/hyku_knapsack/version -e 'print HykuKnapsack::VERSION')
+          branch="bump-hyku/$tag"
+          current=$(git ls-tree HEAD hyrax-webapp | awk '{print $3}')
+          target=$(gh api "repos/samvera/hyku/commits/$tag" --jq .sha)
+
+          if [ "$current" = "$target" ]; then
+            echo "hyrax-webapp is already at $tag." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Hyku releases come off stable branches, so a newer tag isn't a descendant of the pin
+          if [ "$version" = "$knapsack_version" ] || [ "$(printf '%s\n' "$knapsack_version" "$version" | sort -V | tail -1)" != "$version" ]; then
+            echo "$tag is not newer than knapsack $knapsack_version; skipping." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+            echo "$branch already exists." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git update-index --cacheinfo "160000,$target,hyrax-webapp"
+          sed -i "s/VERSION = \".*\"/VERSION = \"$version\"/" lib/hyku_knapsack/version.rb
+          git add lib/hyku_knapsack/version.rb
+          git commit -m "⬆️ Bump Hyku to $tag"
+          git push origin "$branch"
+
+          gh pr create --base main --head "$branch" --title "⬆️ Bump Hyku to $tag" --body "$(cat <<EOF
+          Pins hyrax-webapp to Hyku [$tag]($(jq -r .html_url <<< "$release")) and sets the knapsack version to $version to match.
+
+          [Compare ${current::7}...$tag](https://github.com/samvera/hyku/compare/$current...$target)
+          EOF
+          )"
+          # Pushes made with GITHUB_TOKEN don't trigger pull_request workflows
+          gh workflow run build-test-lint.yaml --ref "$branch"
