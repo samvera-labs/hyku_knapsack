@@ -1,4 +1,12 @@
 #!/usr/bin/env sh
+
+# Guard: skip entirely in standalone Solr mode.  The core is pre-created by the
+# container entrypoint (SOLR_COLLECTION env var); Collection API is SolrCloud-only.
+if [ "${SOLR_ENABLE_CLOUD_MODE:-yes}" = "no" ]; then
+  echo "-- Standalone Solr mode (SOLR_ENABLE_CLOUD_MODE=no): skipping ConfigSet assignment."
+  exit 0
+fi
+
 COUNTER=0;
 
 if [ "$SOLR_ADMIN_USER" ]; then
@@ -7,6 +15,7 @@ fi
 
 solr_config_name="${SOLR_CONFIGSET_NAME:-solrconfig}"
 solr_collection_name="${SOLR_COLLECTION_NAME:-hyrax}"
+solr_collection_replicas="${SOLR_COLLECTION_REPLICAS:-1}"
 
 # Solr Cloud Collection API URLs
 solr_collection_list_url="$SOLR_HOST:$SOLR_PORT/solr/admin/collections?action=LIST"
@@ -21,7 +30,7 @@ while [ $COUNTER -lt 30 ]; do
       exit
     else
       echo "-- Collection ${solr_collection_name} does not exist; creating and setting ${solr_config_name} ConfigSet ..."
-      solr_collection_create_url="$SOLR_HOST:$SOLR_PORT/solr/admin/collections?action=CREATE&name=${solr_collection_name}&collection.configName=${solr_config_name}&numShards=1"
+      solr_collection_create_url="$SOLR_HOST:$SOLR_PORT/solr/admin/collections?action=CREATE&name=${solr_collection_name}&collection.configName=${solr_config_name}&numShards=1&replicationFactor=${solr_collection_replicas}"
       curl $solr_user_settings "$solr_collection_create_url"
       exit
     fi

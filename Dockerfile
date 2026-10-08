@@ -1,4 +1,5 @@
 ARG HYRAX_IMAGE_VERSION=hyrax-v5.2.0
+ARG SOLR_VERSION=8
 FROM ghcr.io/samvera/hyrax/hyrax-base:$HYRAX_IMAGE_VERSION AS hyku-web
 
 USER root
@@ -28,12 +29,12 @@ CMD ./bin/web
 FROM hyku-web AS hyku-worker
 CMD ./bin/worker
 
-# Use a Solr version with patched Log4j to address CVE-2021-44228
-FROM solr:8.11.2 AS hyku-solr
+FROM solr:${SOLR_VERSION} AS hyku-solr
 ENV SOLR_USER="solr" \
     SOLR_GROUP="solr"
 USER root
 COPY --chown=solr:solr solr/security.json /var/solr/data/security.json
+COPY --chown=solr:solr solr/conf /opt/solr/server/solr/configsets/hyku/conf
 USER $SOLR_USER
 
 FROM ghcr.io/notch8/scripts/bitnamilegacy-nginx:1.21.6-debian-11-r21 AS hyku-nginx
