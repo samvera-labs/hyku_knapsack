@@ -33,8 +33,8 @@ FROM solr:${SOLR_VERSION} AS hyku-solr
 ENV SOLR_USER="solr" \
     SOLR_GROUP="solr"
 USER root
-COPY --chown=solr:solr solr/security.json /var/solr/data/security.json
-COPY --chown=solr:solr solr/conf /opt/solr/server/solr/configsets/hyku/conf
+COPY --chown=solr:solr hyrax-webapp/solr/security.json /var/solr/data/security.json
+COPY --chown=solr:solr hyrax-webapp/solr/conf /opt/solr/server/solr/configsets/hyku/conf
 USER $SOLR_USER
 
 FROM ghcr.io/notch8/scripts/bitnamilegacy-nginx:1.21.6-debian-11-r21 AS hyku-nginx
