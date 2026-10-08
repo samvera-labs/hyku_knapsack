@@ -215,7 +215,7 @@ https://admin-{$APP_NAME}.localhost.direct/
 Example (for the Hyku Knapsack repo):
 
 ```
-https://admin-hyku-knapsack.localhost.direct/
+https://admin-hyku.localhost.direct/
 ```
 
 #### 5. Open a shell in the container (if needed)
