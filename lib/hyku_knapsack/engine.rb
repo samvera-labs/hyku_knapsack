@@ -120,14 +120,15 @@ module HykuKnapsack
         klass.view_paths = paths.uniq
       end
       ::ApplicationController.send :helper, HykuKnapsack::Engine.helpers
+    end
 
-      ##
-      # Ensure that all knapsack locales are the "first choice" of keys.  We've already done this in
-      # the catalog controller to appease the Blacklight constraint of having translations loaded.
-      # However, between loading those translations in the catalog controller and now, the
-      # underlying application and even other engines might have further amended the load path.
-      # This is our "best" chance to do it at the latest possible moment.
-      HykuKnapsack::Engine.load_translations!
+    ##
+    # Ensure that all knapsack locales are the "first choice" of keys.  The underlying application
+    # and even other engines might have amended the load path, so this is our "best" chance to do
+    # it at the latest possible moment.
+    initializer 'hyku_knapsack.load_translations_last' do |app|
+      app.config.to_prepare { HykuKnapsack::Engine.load_translations! }
+      app.config.after_initialize { HykuKnapsack::Engine.load_translations! }
     end
   end
 end
