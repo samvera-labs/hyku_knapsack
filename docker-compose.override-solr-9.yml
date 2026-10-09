@@ -1,0 +1,10 @@
+# To use Solr 9 locally: cp docker-compose.override-solr-9.yml docker-compose.override.yml
+services:
+  solr:
+    image: ghcr.io/samvera-labs/hyku_knapsack/solr:${TAG:-latest}-9
+    build:
+      args:
+        # 9.11 removed in-process Tika; unpin once samvera/hyku#3379 lands
+        SOLR_VERSION: ${SOLR_VERSION:-9.10}
+    environment:
+      - SOLR_OPTS=${SOLR_OPTS--Dsolr.config.lib.enabled=true -Dsolr.filterCache.class=solr.CaffeineCache -Dsolr.queryResultCache.class=solr.CaffeineCache -Dsolr.documentCache.class=solr.CaffeineCache}
